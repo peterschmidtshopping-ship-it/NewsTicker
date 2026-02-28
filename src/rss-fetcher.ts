@@ -4,16 +4,26 @@ import { FEEDS, ARTICLES_PER_FEED, type FeedConfig } from "./feeds.config.js";
 
 const parser = new Parser();
 
-async function fetchFeed(feed: FeedConfig): Promise<Article[]> {
+async function fetchFeed(
+  feed: FeedConfig,
+  readUrls: Set<string>,
+): Promise<Article[]> {
   const result = await parser.parseURL(feed.url);
 
-  return result.items.slice(0, ARTICLES_PER_FEED).map((item) => ({
-    title: item.title ?? "",
-    description: item.contentSnippet ?? item.content ?? "",
-    link: item.link ?? "",
-    pubDate: item.pubDate ?? item.isoDate ?? "",
-    source: feed.source,
-  }));
+  const articles: Article[] = [];
+  for (const item of result.items) {
+    if (articles.length >= ARTICLES_PER_FEED) break;
+    const link = item.link ?? "";
+    if (readUrls.has(link)) continue;
+    articles.push({
+      title: item.title ?? "",
+      description: item.contentSnippet ?? item.content ?? "",
+      link,
+      pubDate: item.pubDate ?? item.isoDate ?? "",
+      source: feed.source,
+    });
+  }
+  return articles;
 }
 
 function interleave(arrays: Article[][]): Article[] {
@@ -31,7 +41,11 @@ function interleave(arrays: Article[][]): Article[] {
   return result;
 }
 
-export async function fetchArticles(): Promise<Article[]> {
-  const results = await Promise.all(FEEDS.map(fetchFeed));
+export async function fetchArticles(
+  readUrls: Set<string> = new Set(),
+): Promise<Article[]> {
+  const results = await Promise.all(
+    FEEDS.map((feed) => fetchFeed(feed, readUrls)),
+  );
   return interleave(results);
 }

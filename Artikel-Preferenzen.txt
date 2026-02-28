@@ -9,21 +9,27 @@ Preferenzen für heise Artikel:
 
 - keine heise Artikel über die Schufa
 
-- Artikel über Softwareentwicklung anzeigen
+- keine heise Artikel über Workshop Angebote anzeigen
 
-- Artikel über neue Forschungsergebnisse anzeigen
+- heise Artikel über Cyberattacken/Angriffe anzeigen
 
-- Artikel über KI Themen unbedingt anzeigen
+- heise Artikel über Softwareentwicklung anzeigen
+
+- heise Artikel über neue Forschungsergebnisse anzeigen
+
+- heise Artikel über KI Themen unbedingt anzeigen
 
 Preferenzen für spiegel Artikel:
 - zeige alle Spiegel Artikel an
+- zeige keine Spiegel Artikel über Wintersport, Motersport an
 
 Preferenzen für gamestar Artikel:
 - zeige alle gamestar Artikel an
-- keine gamestar Artikel über Playstation, Xbox, Wii
+- zeige keine gamestar Artikel über Playstation, Xbox, Wii an
 
 Preferenzen für faz Artikel:
 - zeige alle faz Artikel an
+- zeige keine faz Artikel über Wintersport, Motersport an
 
 Preferenzen für Handelsblatt Artikel:
 - zeige alle Handelsblatt Artikel an

@@ -40,9 +40,8 @@ app.post("/api/articles/read", async (req, res) => {
 
 app.get("/api/articles", async (_req, res) => {
   try {
-    const allArticles = await fetchArticles();
     const readUrls = await loadReadUrls();
-    const articles = allArticles.filter((a) => !readUrls.has(a.link));
+    const articles = await fetchArticles(readUrls);
     const result = await filterArticles(articles);
     writeResultFile(result).catch((err) =>
       console.error("Failed to write result file:", err)
@@ -68,9 +67,8 @@ app.get("/api/articles/stream", async (_req, res) => {
   };
 
   try {
-    const allArticles = await fetchArticles();
     const readUrls = await loadReadUrls();
-    const articles = allArticles.filter((a) => !readUrls.has(a.link));
+    const articles = await fetchArticles(readUrls);
     send("init", { total: articles.length });
 
     const FIRST_BATCH = 10;
