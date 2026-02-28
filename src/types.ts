@@ -3,6 +3,7 @@ export interface Article {
   description: string;
   link: string;
   pubDate: string;
+  source: string;
 }
 
 export interface RejectedArticle {

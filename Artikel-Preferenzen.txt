@@ -1,12 +1,12 @@
-- keine Artikel über Sicherheitslücken/Hacks
+- keine heise Artikel über Sicherheitslücken/Hacks
 
-- keine Artikel über Sicherheit/Datenschutz von personenbezogenen Daten
+- keine heise Artikel über Sicherheit/Datenschutz von personenbezogenen Daten
 
-- keine Artikel über Abhörskandal
+- keine heise Artikel über Abhörskandal
 
-- keine Artikel über Abgasskandal, Dieselskandal
+- keine heise Artikel über Abgasskandal, Dieselskandal
 
-- keine Artikel über die Schufa
+- keine heise Artikel über die Schufa
 
 - Artikel über Softwareentwicklung anzeigen
 

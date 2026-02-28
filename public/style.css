@@ -248,6 +248,33 @@ header h1 {
   color: #999;
 }
 
+/* ── Source badge ──────────────────────────────────── */
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.source-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  color: #fff;
+  background: #888;
+}
+
+.source-heise {
+  background: #e94560;
+}
+
+.source-spiegel {
+  background: #e64415;
+}
+
 /* ── Misc ──────────────────────────────────────────── */
 
 .error {

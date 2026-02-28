@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Heise News Ticker</title>
+  <title>News Ticker</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>Heise News Ticker</h1>
+    <h1>News Ticker</h1>
     <p class="subtitle">Gefiltert nach deinen Preferenzen</p>
     <button id="refresh-btn" onclick="refreshArticles()">Aktualisieren</button>
   </header>
@@ -45,16 +45,23 @@
       }
     }
 
+    function getDomain(url) {
+      try { return new URL(url).hostname.replace('www.', ''); } catch(e) { return url; }
+    }
+
     function makeCard(article, extraClass, reason) {
       var cls = 'card' + (extraClass ? ' ' + extraClass : '');
       var date = article.pubDate ? new Date(article.pubDate).toLocaleString('de-DE') : '';
       var link = article.link;
+      var domain = getDomain(link);
+      var source = article.source || domain.split('.')[0];
       return '<article class="' + cls + '" data-url="' + link + '" onclick="openArticle(this)">' +
+        '<div class="card-header"><span class="source-badge source-' + source + '">' + source + '</span>' +
+        (date ? '<time>' + date + '</time>' : '') + '</div>' +
         '<h2>' + article.title + '</h2>' +
-        (date ? '<time>' + date + '</time>' : '') +
         '<p>' + article.description + '</p>' +
         (reason ? '<p class="reason">Grund: ' + reason + '</p>' : '') +
-        '<a class="external-link" href="' + link + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">heise.de</a>' +
+        '<a class="external-link" href="' + link + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + domain + '</a>' +
         '</article>';
     }
 

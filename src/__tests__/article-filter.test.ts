@@ -108,6 +108,7 @@ describe("article-filter", () => {
         description: "test description",
         link: `https://heise.de/article-${f.index}`,
         pubDate: "2026-02-28T12:00:00Z",
+        source: "heise",
       }));
 
       const { filterArticles } = await import("../article-filter.js");
@@ -135,6 +136,7 @@ describe("article-filter", () => {
         description: "test description",
         link: `https://heise.de/article-${f.index}`,
         pubDate: "2026-02-28T12:00:00Z",
+        source: "heise",
       }));
 
       const { filterArticles } = await import("../article-filter.js");
@@ -162,6 +164,7 @@ describe("article-filter", () => {
         description: "test description",
         link: `https://heise.de/article-${f.index}`,
         pubDate: "2026-02-28T12:00:00Z",
+        source: "heise",
       }));
 
       const { filterArticles } = await import("../article-filter.js");
@@ -216,6 +219,7 @@ describe("article-filter", () => {
         description: "desc",
         link: "https://example.com",
         pubDate: "2026-02-28T12:00:00Z",
+        source: "heise",
       }];
 
       const { filterArticles } = await import("../article-filter.js");
@@ -234,6 +238,7 @@ describe("article-filter", () => {
         description: "desc",
         link: "https://example.com/broken",
         pubDate: "2026-02-28T12:00:00Z",
+        source: "heise",
       }];
 
       const { filterArticles } = await import("../article-filter.js");

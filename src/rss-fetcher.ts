@@ -1,17 +1,37 @@
 import Parser from "rss-parser";
 import type { Article } from "./types.js";
-
-const FEED_URL = "https://www.heise.de/rss/heise.rdf";
+import { FEEDS, ARTICLES_PER_FEED, type FeedConfig } from "./feeds.config.js";
 
 const parser = new Parser();
 
-export async function fetchArticles(): Promise<Article[]> {
-  const feed = await parser.parseURL(FEED_URL);
+async function fetchFeed(feed: FeedConfig): Promise<Article[]> {
+  const result = await parser.parseURL(feed.url);
 
-  return feed.items.slice(0, 20).map((item) => ({
+  return result.items.slice(0, ARTICLES_PER_FEED).map((item) => ({
     title: item.title ?? "",
     description: item.contentSnippet ?? item.content ?? "",
     link: item.link ?? "",
     pubDate: item.pubDate ?? item.isoDate ?? "",
+    source: feed.source,
   }));
+}
+
+function interleave(arrays: Article[][]): Article[] {
+  const result: Article[] = [];
+  const maxLen = Math.max(...arrays.map((a) => a.length));
+
+  for (let i = 0; i < maxLen; i++) {
+    for (const arr of arrays) {
+      if (i < arr.length) {
+        result.push(arr[i]);
+      }
+    }
+  }
+
+  return result;
+}
+
+export async function fetchArticles(): Promise<Article[]> {
+  const results = await Promise.all(FEEDS.map(fetchFeed));
+  return interleave(results);
 }

@@ -104,7 +104,7 @@ function formatArticleList(articles: Article[]): string {
 
 async function writeResultFile(result: FilteredResponse): Promise<void> {
   const timestamp = new Date().toLocaleString("de-DE");
-  let text = `Heise News Ticker — Ergebnis vom ${timestamp}\n`;
+  let text = `News Ticker — Ergebnis vom ${timestamp}\n`;
   text += "=".repeat(60) + "\n\n";
 
   text += `Passende Artikel (${result.articles.length}):\n`;
@@ -128,5 +128,5 @@ async function writeResultFile(result: FilteredResponse): Promise<void> {
 }
 
 app.listen(PORT, () => {
-  console.log(`HeiseNewsTicker running at http://localhost:${PORT}`);
+  console.log(`NewsTicker running at http://localhost:${PORT}`);
 });
