@@ -1,3 +1,5 @@
+Preferenzen für heise Artikel:
+
 - keine heise Artikel über Sicherheitslücken/Hacks
 
 - keine heise Artikel über Sicherheit/Datenschutz von personenbezogenen Daten
@@ -14,3 +16,6 @@
 
 - Artikel über KI Themen unbedingt anzeigen
 
+
+Preferenzen für spiegel Artikel:
+- zeige alle Spiegel Artikel an

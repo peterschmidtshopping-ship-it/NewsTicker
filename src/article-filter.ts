@@ -21,7 +21,7 @@ async function evaluateArticle(
   fullContent: string,
   preferences: string
 ): Promise<{ relevant: boolean; reason: string }> {
-  const userPrompt = `## Preferences:\n${preferences}\n\n## Article:\nTitle: ${article.title}\nDescription: ${article.description}\n\n## Full Content:\n${fullContent}`;
+  const userPrompt = `## Preferences:\n${preferences}\n\n## Article:\nFeed: ${article.source}\nTitle: ${article.title}\nDescription: ${article.description}\n\n## Full Content:\n${fullContent}`;
 
   const pad = String(index + 1).padStart(2, "0");
   await writeFile(resolve(LOG_DIR, `${pad}-request.txt`), userPrompt, "utf-8");
