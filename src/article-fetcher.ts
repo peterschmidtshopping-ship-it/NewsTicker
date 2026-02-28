@@ -39,20 +39,53 @@ export async function fetchArticleHtml(url: string): Promise<string> {
   }
 
   const html = await response.text();
-  const $ = loadAndClean(html);
+  const $ = cheerio.load(html);
 
-  // Make images absolute
-  $("img").each((_i, el) => {
-    const src = $(el).attr("src");
-    if (src && src.startsWith("/")) {
-      $(el).attr("src", "https://www.heise.de" + src);
+  // Extract the header lead text
+  const lead = $(".a-article-header__lead").html() ?? "";
+
+  // Extract the main article content
+  const body = $(".article-content").html() ?? "";
+
+  // Extract article title
+  const title = $("article h1, article h2").first().text().trim();
+
+  // Build clean HTML
+  let content = "";
+  if (title) {
+    content += `<h1>${title}</h1>`;
+  }
+  if (lead) {
+    content += `<p class="lead">${lead}</p>`;
+  }
+  content += body;
+
+  // Clean up: remove teaser elements, template vars, ads
+  const $clean = cheerio.load(content);
+  $clean("script, style, .a-article-teaser, a-ad, [class*='teaser'], .notice-banner").remove();
+  // Remove elements with unresolved template variables
+  $clean("*").each((_i, el) => {
+    const html = $clean(el).html() ?? "";
+    if (html.includes("${")) {
+      $clean(el).remove();
     }
   });
 
-  let content = $("article").html();
-  if (!content?.trim()) {
-    content = $("body").html() ?? "";
-  }
+  // Make images absolute
+  $clean("img").each((_i, el) => {
+    const src = $clean(el).attr("src");
+    if (src && src.startsWith("/")) {
+      $clean(el).attr("src", "https://www.heise.de" + src);
+    }
+  });
 
-  return content;
+  // Remove placeholder SVG images
+  $clean("img").each((_i, el) => {
+    const src = $clean(el).attr("src") ?? "";
+    if (src.startsWith("data:image/svg")) {
+      $clean(el).remove();
+    }
+  });
+
+  return $clean.html() ?? "";
 }
