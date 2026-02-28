@@ -51,8 +51,16 @@ app.get("/api/articles/stream", async (_req, res) => {
     const articles = await fetchArticles();
     send("init", { total: articles.length });
 
-    const result = await filterArticles(articles, (progress) => {
-      send("progress", progress);
+    const FIRST_BATCH = 10;
+
+    const result = await filterArticles(articles, {
+      onProgress(progress) {
+        send("progress", progress);
+      },
+      batchDoneAfter: FIRST_BATCH,
+      onBatchDone(partial) {
+        send("batch-done", partial);
+      },
     });
 
     writeResultFile(result).catch((err) =>

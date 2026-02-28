@@ -69,10 +69,32 @@ async function processArticle(
   }
 }
 
+interface FilterOptions {
+  onProgress?: OnProgress;
+  /** Send partial results after this many articles have been checked */
+  batchDoneAfter?: number;
+  onBatchDone?: (partial: FilteredResponse) => void;
+}
+
+function buildResponse(
+  results: { article: Article; relevant: boolean; reason: string }[]
+): FilteredResponse {
+  const matched = results.filter((r) => r.relevant).map((r) => r.article);
+  const filteredOut: RejectedArticle[] = results
+    .filter((r) => !r.relevant)
+    .map((r) => ({ article: r.article, reason: r.reason }));
+  return { articles: matched, filteredOut };
+}
+
 export async function filterArticles(
   articles: Article[],
-  onProgress?: OnProgress
+  onProgressOrOpts?: OnProgress | FilterOptions
 ): Promise<FilteredResponse> {
+  const opts: FilterOptions =
+    typeof onProgressOrOpts === "function"
+      ? { onProgress: onProgressOrOpts }
+      : onProgressOrOpts ?? {};
+
   const preferences = await readFile(PREFERENCES_PATH, "utf-8");
 
   console.log(`Filtering ${articles.length} articles (max ${MAX_CONCURRENT} concurrent)...`);
@@ -82,6 +104,7 @@ export async function filterArticles(
   // Process in batches to limit concurrency
   const results: { article: Article; relevant: boolean; reason: string }[] = [];
   let checked = 0;
+  let batchSent = false;
 
   for (let i = 0; i < articles.length; i += MAX_CONCURRENT) {
     const batch = articles.slice(i, i + MAX_CONCURRENT);
@@ -89,7 +112,7 @@ export async function filterArticles(
       batch.map(async (article, j) => {
         const result = await processArticle(i + j, article, preferences);
         checked++;
-        onProgress?.({
+        opts.onProgress?.({
           checked,
           total: articles.length,
           title: result.article.title,
@@ -99,14 +122,21 @@ export async function filterArticles(
       })
     );
     results.push(...batchResults);
+
+    // Send partial results after batchDoneAfter articles
+    if (
+      !batchSent &&
+      opts.batchDoneAfter &&
+      opts.onBatchDone &&
+      checked >= opts.batchDoneAfter
+    ) {
+      batchSent = true;
+      opts.onBatchDone(buildResponse(results));
+    }
   }
 
-  const matched = results.filter((r) => r.relevant).map((r) => r.article);
-  const filteredOut: RejectedArticle[] = results
-    .filter((r) => !r.relevant)
-    .map((r) => ({ article: r.article, reason: r.reason }));
+  const response = buildResponse(results);
+  console.log(`Done: ${response.articles.length} relevant, ${response.filteredOut.length} filtered out`);
 
-  console.log(`Done: ${matched.length} relevant, ${filteredOut.length} filtered out`);
-
-  return { articles: matched, filteredOut };
+  return response;
 }

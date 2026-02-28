@@ -110,11 +110,41 @@
         });
     }
 
+    function renderResultsAppend(data) {
+      var container = document.getElementById('articles');
+      var html = '';
+
+      if (data.warning) {
+        html += '<div class="warning">' + data.warning + '</div>';
+      }
+
+      if (data.articles.length === 0) {
+        html += '<div class="empty">Keine passenden Artikel gefunden.</div>';
+      } else {
+        html += data.articles.map(function(article) {
+          return makeCard(article);
+        }).join('');
+      }
+
+      if (data.filteredOut && data.filteredOut.length > 0) {
+        html += '<div class="divider"><span>Ausgefilterte Artikel</span></div>';
+        html += data.filteredOut.map(function(item) {
+          return makeCard(item.article, 'filtered-out', item.reason);
+        }).join('');
+      }
+
+      // Append a small loading hint for remaining articles
+      html += '<div id="batch-loading" class="loading" style="padding:1rem;font-size:0.85rem;">Weitere Artikel werden geladen...</div>';
+
+      container.innerHTML = html;
+    }
+
     function loadArticles() {
       return new Promise(function(resolve, reject) {
         showProgress();
 
         var es = new EventSource('/api/articles/stream');
+        var batchRendered = false;
 
         es.addEventListener('init', function(e) {
           var data = JSON.parse(e.data);
@@ -124,7 +154,15 @@
 
         es.addEventListener('progress', function(e) {
           var data = JSON.parse(e.data);
-          updateProgress(data.checked, data.total, data.title, data.relevant);
+          if (!batchRendered) {
+            updateProgress(data.checked, data.total, data.title, data.relevant);
+          }
+        });
+
+        es.addEventListener('batch-done', function(e) {
+          batchRendered = true;
+          var data = JSON.parse(e.data);
+          renderResultsAppend(data);
         });
 
         es.addEventListener('done', function(e) {
