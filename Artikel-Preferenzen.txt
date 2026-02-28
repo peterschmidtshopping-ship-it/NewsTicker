@@ -1,5 +1,4 @@
 Preferenzen für heise Artikel:
-
 - keine heise Artikel über Sicherheitslücken/Hacks
 
 - keine heise Artikel über Sicherheit/Datenschutz von personenbezogenen Daten
@@ -16,14 +15,15 @@ Preferenzen für heise Artikel:
 
 - Artikel über KI Themen unbedingt anzeigen
 
-
 Preferenzen für spiegel Artikel:
 - zeige alle Spiegel Artikel an
 
-
 Preferenzen für gamestar Artikel:
 - zeige alle gamestar Artikel an
-
+- keine gamestar Artikel über Playstation, Xbox, Wii
 
 Preferenzen für faz Artikel:
 - zeige alle faz Artikel an
+
+Preferenzen für Handelsblatt Artikel:
+- zeige alle Handelsblatt Artikel an

@@ -8,6 +8,7 @@ export const FEEDS: FeedConfig[] = [
   { url: "https://www.spiegel.de/schlagzeilen/tops/index.rss", source: "spiegel" },
   { url: "https://www.gamestar.de/news/rss/news.rss", source: "gamestar" },
   { url: "https://www.faz.net/rss/aktuell", source: "faz" },
+  { url: "https://www.handelsblatt.com/contentexport/feed/schlagzeilen", source: "handelsblatt" },
 ];
 
 export const ARTICLES_PER_FEED = 10;

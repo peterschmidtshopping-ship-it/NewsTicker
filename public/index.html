@@ -61,7 +61,10 @@
         '<h2>' + article.title + '</h2>' +
         '<p>' + article.description + '</p>' +
         (reason ? '<p class="reason">Grund: ' + reason + '</p>' : '') +
+        '<div class="card-footer">' +
         '<a class="external-link" href="' + link + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + domain + '</a>' +
+        '<button class="btn-read" onclick="event.stopPropagation(); markAsRead(this, \'' + link.replace(/'/g, "\\'") + '\')">gelesen</button>' +
+        '</div>' +
         '</article>';
     }
 
@@ -109,11 +112,47 @@
           if (data.error) {
             reader.innerHTML = '<div class="error">' + data.error + '</div>';
           } else {
-            reader.innerHTML = '<div class="reader-content">' + data.html + '</div>';
+            reader.innerHTML = '<div class="reader-content">' + data.html + '</div>' +
+              '<div class="reader-footer">' +
+              '<button class="btn-read btn-read-reader" onclick="markAsRead(this, \'' + url.replace(/'/g, "\\'") + '\')">gelesen</button>' +
+              '</div>';
           }
         })
         .catch(function(err) {
           reader.innerHTML = '<div class="error">Fehler: ' + err.message + '</div>';
+        });
+    }
+
+    function markAsRead(btn, url) {
+      btn.disabled = true;
+      btn.textContent = '...';
+      fetch('/api/articles/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url })
+      })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            // Remove the card from the article list
+            var card = btn.closest('.card');
+            if (card) card.remove();
+            // Also find and remove the card by data-url in the left panel
+            var leftCard = document.querySelector('#articles .card[data-url="' + url + '"]');
+            if (leftCard) leftCard.remove();
+            // Clear reader if triggered from reader button
+            if (btn.closest('.reader-footer')) {
+              document.getElementById('reader').innerHTML =
+                '<div class="reader-placeholder">Artikel anklicken, um ihn hier zu lesen.</div>';
+            }
+          } else {
+            btn.disabled = false;
+            btn.textContent = 'gelesen';
+          }
+        })
+        .catch(function() {
+          btn.disabled = false;
+          btn.textContent = 'gelesen';
         });
     }
 

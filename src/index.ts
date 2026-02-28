@@ -6,6 +6,7 @@ import { writeFile } from "node:fs/promises";
 import { fetchArticles } from "./rss-fetcher.js";
 import { filterArticles } from "./article-filter.js";
 import { fetchArticleHtml } from "./article-fetcher.js";
+import { loadReadUrls, markRead } from "./read-store.js";
 import type { Article, RejectedArticle, FilteredResponse } from "./types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -18,11 +19,30 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 const app = express();
 
+app.use(express.json());
 app.use(express.static(resolve(__dirname, "..", "public")));
+
+app.post("/api/articles/read", async (req, res) => {
+  const url = req.body?.url;
+  if (!url || typeof url !== "string") {
+    res.status(400).json({ error: "Missing url" });
+    return;
+  }
+  try {
+    await markRead(url);
+    res.json({ ok: true });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown error";
+    res.status(500).json({ error: message });
+  }
+});
 
 app.get("/api/articles", async (_req, res) => {
   try {
-    const articles = await fetchArticles();
+    const allArticles = await fetchArticles();
+    const readUrls = await loadReadUrls();
+    const articles = allArticles.filter((a) => !readUrls.has(a.link));
     const result = await filterArticles(articles);
     writeResultFile(result).catch((err) =>
       console.error("Failed to write result file:", err)
@@ -48,7 +68,9 @@ app.get("/api/articles/stream", async (_req, res) => {
   };
 
   try {
-    const articles = await fetchArticles();
+    const allArticles = await fetchArticles();
+    const readUrls = await loadReadUrls();
+    const articles = allArticles.filter((a) => !readUrls.has(a.link));
     send("init", { total: articles.length });
 
     const FIRST_BATCH = 10;
