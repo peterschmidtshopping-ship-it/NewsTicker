@@ -19,3 +19,11 @@ Preferenzen für heise Artikel:
 
 Preferenzen für spiegel Artikel:
 - zeige alle Spiegel Artikel an
+
+
+Preferenzen für gamestar Artikel:
+- zeige alle gamestar Artikel an
+
+
+Preferenzen für faz Artikel:
+- zeige alle faz Artikel an

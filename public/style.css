@@ -275,6 +275,14 @@ header h1 {
   background: #e64415;
 }
 
+.source-gamestar {
+  background: #1a73e8;
+}
+
+.source-faz {
+  background: #2a5298;
+}
+
 /* ── Misc ──────────────────────────────────────────── */
 
 .error {
