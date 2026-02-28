@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heise News Ticker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Heise News Ticker</h1>
+    <p class="subtitle">Gefiltert nach deinen Preferenzen</p>
+    <button id="refresh-btn" onclick="refreshArticles()">Aktualisieren</button>
+  </header>
+  <div class="layout">
+    <div class="panel-left" id="articles">
+      <div class="loading">Artikel werden geladen und gefiltert...</div>
+    </div>
+    <div class="panel-right" id="reader">
+      <div class="reader-placeholder">Artikel anklicken, um ihn hier zu lesen.</div>
+    </div>
+  </div>
+  <script>
+    function showProgress() {
+      var container = document.getElementById('articles');
+      container.innerHTML =
+        '<div class="progress-container">' +
+          '<div class="progress-text">RSS-Feed wird geladen...</div>' +
+          '<div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>' +
+          '<div class="progress-detail" id="progress-detail"></div>' +
+        '</div>';
+    }
+
+    function updateProgress(checked, total, title, relevant) {
+      var pct = Math.round((checked / total) * 100);
+      var fill = document.getElementById('progress-fill');
+      var detail = document.getElementById('progress-detail');
+      var text = document.querySelector('.progress-text');
+      if (fill) fill.style.width = pct + '%';
+      if (text) text.textContent = 'Artikel ' + checked + ' / ' + total + ' überprüft (' + pct + '%)';
+      if (detail) {
+        var icon = relevant ? '+' : '-';
+        var cls = relevant ? 'progress-relevant' : 'progress-filtered';
+        detail.innerHTML = '<span class="' + cls + '">' + icon + ' ' + title + '</span>' + detail.innerHTML;
+      }
+    }
+
+    function makeCard(article, extraClass, reason) {
+      var cls = 'card' + (extraClass ? ' ' + extraClass : '');
+      var date = article.pubDate ? new Date(article.pubDate).toLocaleString('de-DE') : '';
+      var link = article.link;
+      return '<article class="' + cls + '" data-url="' + link + '" onclick="openArticle(this)">' +
+        '<h2>' + article.title + '</h2>' +
+        (date ? '<time>' + date + '</time>' : '') +
+        '<p>' + article.description + '</p>' +
+        (reason ? '<p class="reason">Grund: ' + reason + '</p>' : '') +
+        '<a class="external-link" href="' + link + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">heise.de</a>' +
+        '</article>';
+    }
+
+    function renderResults(data) {
+      var container = document.getElementById('articles');
+      var html = '';
+
+      if (data.warning) {
+        html += '<div class="warning">' + data.warning + '</div>';
+      }
+
+      if (data.articles.length === 0) {
+        html += '<div class="empty">Keine passenden Artikel gefunden.</div>';
+      } else {
+        html += data.articles.map(function(article) {
+          return makeCard(article);
+        }).join('');
+      }
+
+      if (data.filteredOut && data.filteredOut.length > 0) {
+        html += '<div class="divider"><span>Ausgefilterte Artikel</span></div>';
+        html += data.filteredOut.map(function(item) {
+          return makeCard(item.article, 'filtered-out', item.reason);
+        }).join('');
+      }
+
+      container.innerHTML = html;
+    }
+
+    function openArticle(el) {
+      var url = el.getAttribute('data-url');
+      var reader = document.getElementById('reader');
+
+      // Highlight selected card
+      document.querySelectorAll('.card.selected').forEach(function(c) {
+        c.classList.remove('selected');
+      });
+      el.classList.add('selected');
+
+      reader.innerHTML = '<div class="reader-loading">Artikel wird geladen...</div>';
+
+      fetch('/api/article-content?url=' + encodeURIComponent(url))
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data.error) {
+            reader.innerHTML = '<div class="error">' + data.error + '</div>';
+          } else {
+            reader.innerHTML = '<div class="reader-content">' + data.html + '</div>';
+          }
+        })
+        .catch(function(err) {
+          reader.innerHTML = '<div class="error">Fehler: ' + err.message + '</div>';
+        });
+    }
+
+    function loadArticles() {
+      return new Promise(function(resolve, reject) {
+        showProgress();
+
+        var es = new EventSource('/api/articles/stream');
+
+        es.addEventListener('init', function(e) {
+          var data = JSON.parse(e.data);
+          var text = document.querySelector('.progress-text');
+          if (text) text.textContent = 'Artikel 0 / ' + data.total + ' überprüft (0%)';
+        });
+
+        es.addEventListener('progress', function(e) {
+          var data = JSON.parse(e.data);
+          updateProgress(data.checked, data.total, data.title, data.relevant);
+        });
+
+        es.addEventListener('done', function(e) {
+          es.close();
+          var data = JSON.parse(e.data);
+          renderResults(data);
+          resolve();
+        });
+
+        es.addEventListener('error', function(e) {
+          es.close();
+          if (e.data) {
+            var data = JSON.parse(e.data);
+            document.getElementById('articles').innerHTML =
+              '<div class="error">Fehler: ' + data.error + '</div>';
+          } else {
+            document.getElementById('articles').innerHTML =
+              '<div class="error">Verbindungsfehler zum Server.</div>';
+          }
+          reject(new Error('Stream error'));
+        });
+      });
+    }
+
+    function refreshArticles() {
+      var btn = document.getElementById('refresh-btn');
+      btn.disabled = true;
+      btn.textContent = 'Laden...';
+      document.getElementById('reader').innerHTML =
+        '<div class="reader-placeholder">Artikel anklicken, um ihn hier zu lesen.</div>';
+      loadArticles().finally(function() {
+        btn.disabled = false;
+        btn.textContent = 'Aktualisieren';
+      });
+    }
+
+    loadArticles();
+  </script>
+</body>
+</html>
