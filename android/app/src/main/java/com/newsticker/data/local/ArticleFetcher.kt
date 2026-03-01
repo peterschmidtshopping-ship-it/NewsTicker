@@ -126,23 +126,34 @@ object ArticleFetcher {
         return result
     }
 
-    /** Remove <ul>/<ol> elements that are navigation-style (mostly just links, little text) */
+    /** Remove <ul>/<ol> elements that are navigation-style (mostly links/buttons, little text).
+     *  Matches innermost lists first (no nested lists inside), then loops to peel outer layers. */
     private fun removeNavigationLists(html: String): String {
-        return Regex(
-            """<(ul|ol)[^>]*>[\s\S]{0,10000}?</\1>""",
+        // Match only lists that do NOT contain nested <ul>/<ol> (innermost first)
+        val leafListRegex = Regex(
+            """<(ul|ol)\b[^>]*>(?:(?!<(?:ul|ol)\b)[\s\S]){0,10000}?</\1>""",
             RegexOption.IGNORE_CASE
-        ).replace(html) { match ->
-            val block = match.value
-            val linkCount = Regex("""<a\s""", RegexOption.IGNORE_CASE).findAll(block).count()
-            val liCount = Regex("""<li[\s>]""", RegexOption.IGNORE_CASE).findAll(block).count()
-            val text = block.replace(Regex("<[^>]*>"), "").trim()
-            // Navigation list: mostly links with little text per item
-            if (liCount > 0 && linkCount >= liCount && text.length < liCount * 80) {
-                ""
-            } else {
-                block
+        )
+        var result = html
+        while (true) {
+            val next = leafListRegex.replace(result) { match ->
+                val block = match.value
+                val linkCount = Regex("""<a\s""", RegexOption.IGNORE_CASE).findAll(block).count()
+                val buttonCount = Regex("""<button[\s>]""", RegexOption.IGNORE_CASE).findAll(block).count()
+                val interactiveCount = linkCount + buttonCount
+                val liCount = Regex("""<li[\s>]""", RegexOption.IGNORE_CASE).findAll(block).count()
+                val text = block.replace(Regex("<[^>]*>"), "").trim()
+                // Navigation list: mostly links/buttons with little text per item
+                if (liCount > 0 && interactiveCount >= liCount && text.length < liCount * 80) {
+                    ""
+                } else {
+                    block
+                }
             }
+            if (next == result) break
+            result = next
         }
+        return result
     }
 
     /** Strip leading non-content junk before the first substantial <p> */
