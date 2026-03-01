@@ -96,6 +96,27 @@ object ArticleFetcher {
         return match?.groupValues?.get(1) ?: ""
     }
 
+    /** Extract inner HTML of the first div whose class contains one of the given patterns,
+     *  properly tracking nesting depth to find the matching closing tag. */
+    private fun extractDivByClass(html: String, vararg classPatterns: String): String? {
+        for (pattern in classPatterns) {
+            val openRegex = Regex("""<div[^>]+class="[^"]*$pattern[^"]*"[^>]*>""", RegexOption.IGNORE_CASE)
+            val match = openRegex.find(html) ?: continue
+            val contentStart = match.range.last + 1
+            var depth = 1
+            var i = contentStart
+            while (i < html.length && depth > 0) {
+                if (html.startsWith("<div", i, ignoreCase = true)) depth++
+                else if (html.startsWith("</div>", i, ignoreCase = true)) {
+                    depth--
+                    if (depth == 0) return html.substring(contentStart, i)
+                }
+                i++
+            }
+        }
+        return null
+    }
+
     private fun stripTags(html: String, vararg tags: String): String {
         var result = html
         for (tag in tags) {
@@ -124,14 +145,19 @@ object ArticleFetcher {
             RegexOption.IGNORE_CASE
         ).find(cleaned)?.groupValues?.get(1)
 
+        // Look for div with common article-content class names (e.g. GameStar, WordPress)
+        val contentDivHtml = extractDivByClass(cleaned,
+            "article-content", "entry-content", "post-content", "story-body")
+
         val bodyHtml = Regex(
             "<body[^>]*>([\\s\\S]*)</body>",
             RegexOption.IGNORE_CASE
         ).find(cleaned)?.groupValues?.get(1)
 
-        // Prefer article > main > body when they have enough content, to avoid
-        // picking up comments, sidebars, etc. that inflate the body's text length.
-        val content = listOfNotNull(articleHtml, mainHtml).firstOrNull { textLength(it) >= MIN_CONTENT_LENGTH }
+        // Prefer narrowest container with enough content to avoid picking up
+        // comments, sidebars, etc. that inflate the body's text length.
+        val content = listOfNotNull(contentDivHtml, articleHtml, mainHtml)
+            .firstOrNull { textLength(it) >= MIN_CONTENT_LENGTH }
             ?: listOfNotNull(mainHtml, articleHtml, bodyHtml).maxByOrNull { textLength(it) }
             ?: cleaned
 
@@ -144,6 +170,8 @@ object ArticleFetcher {
             "sidebar", "newsletter", "social", "anzeige", "magazine", "menu",
             "toolbar", "breadcrumb", "topnav", "nav-", "a-navigation",
             "special", "druckansicht", "kommentar", "heise-bot", "push-nach",
+            // gamestar specific
+            "content-meta", "content-label", "btn-tab", "do-toggle", "do-filter",
             // decoder specific
             "entry-header", "copy-url", "decoder-ad", "decoder-highlight",
             "icon-share", "icon-comment", "icon-link", "sr-only", "not-prose"
