@@ -47,8 +47,12 @@ object ArticleFetcher {
 
             val withAbsoluteImages = makeImagesAbsolute(extracted, baseUrl)
 
-            // Prepend RSS feed image only if it doesn't already appear in the article content
-            val leadImage = if (imageUrl.isNotEmpty() && !withAbsoluteImages.contains(imageUrl)) {
+            // Prepend RSS feed image only if a variant of it doesn't already appear in the article.
+            // Compare by image path stem (e.g. "JKfZ5k9LDqrg...donald-trump") since sites
+            // serve the same image at different sizes/formats between RSS and article HTML.
+            val imageId = extractImageId(imageUrl)
+            val isDuplicate = imageId.isNotEmpty() && withAbsoluteImages.contains(imageId)
+            val leadImage = if (imageUrl.isNotEmpty() && !isDuplicate) {
                 """<img src="$imageUrl" alt="" style="width:100%;margin-bottom:12px"/>"""
             } else ""
 
@@ -56,6 +60,18 @@ object ArticleFetcher {
         } catch (_: Exception) {
             ArticleContent.LoadUrl(url)
         }
+    }
+
+    /** Extract a stable identifier from an image URL for deduplication.
+     *  Returns the filename stem (without extension) so that the same image served at
+     *  different sizes or formats (jpg/jpeg/webp/avif) is still recognised as a duplicate. */
+    private fun extractImageId(url: String): String {
+        // Take the last path segment, strip query params and extension
+        val path = url.substringBefore("?").substringBeforeLast("#")
+        val filename = path.substringAfterLast("/")
+        val stem = filename.substringBeforeLast(".")
+        // Only use it if it's a meaningful name (not just a number or very short hash)
+        return if (stem.length >= 4) stem else ""
     }
 
     private fun getBaseUrl(articleUrl: String): String {
