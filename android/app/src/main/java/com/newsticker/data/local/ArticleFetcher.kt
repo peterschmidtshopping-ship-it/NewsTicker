@@ -64,7 +64,7 @@ object ArticleFetcher {
     }
 
     /** Remove heading elements whose text matches the article title (already shown in the native UI). */
-    private fun removeDuplicateTitle(html: String, title: String): String {
+    internal fun removeDuplicateTitle(html: String, title: String): String {
         val titleWords = title.lowercase().split(Regex("\\W+")).filter { it.length > 2 }.toSet()
         if (titleWords.size < 3) return html
         return Regex(
@@ -82,7 +82,7 @@ object ArticleFetcher {
     /** Extract a stable identifier from an image URL for deduplication.
      *  Returns the filename stem (without extension) so that the same image served at
      *  different sizes or formats (jpg/jpeg/webp/avif) is still recognised as a duplicate. */
-    private fun extractImageId(url: String): String {
+    internal fun extractImageId(url: String): String {
         // Take the last path segment, strip query params and extension
         val path = url.substringBefore("?").substringBeforeLast("#")
         val filename = path.substringAfterLast("/")
@@ -98,7 +98,7 @@ object ArticleFetcher {
 
     /** Extract inner HTML of the first div whose class contains one of the given patterns,
      *  properly tracking nesting depth to find the matching closing tag. */
-    private fun extractDivByClass(html: String, vararg classPatterns: String): String? {
+    internal fun extractDivByClass(html: String, vararg classPatterns: String): String? {
         for (pattern in classPatterns) {
             val openRegex = Regex("""<div[^>]+class="[^"]*$pattern[^"]*"[^>]*>""", RegexOption.IGNORE_CASE)
             val match = openRegex.find(html) ?: continue
@@ -131,7 +131,7 @@ object ArticleFetcher {
     private fun textLength(html: String): Int =
         html.replace(Regex("<[^>]*>"), "").trim().length
 
-    private fun extractGenericContent(html: String): String {
+    internal fun extractGenericContent(html: String): String {
         var cleaned = stripTags(html, "script", "style", "nav", "footer", "aside", "svg", "noscript", "header")
 
         // Extract candidates from different container tags
@@ -161,17 +161,31 @@ object ArticleFetcher {
             ?: listOfNotNull(mainHtml, articleHtml, bodyHtml).maxByOrNull { textLength(it) }
             ?: cleaned
 
-        var result = stripTags(content, "script", "style", "nav", "footer", "aside", "svg", "noscript", "form", "header", "section", "textarea", "button")
+        var result = stripTags(content, "script", "style", "nav", "footer", "aside", "svg", "noscript", "form", "header", "section", "textarea", "button", "iframe")
         // Remove stray form elements (input, select) that survive after form/textarea stripping
         result = Regex("""<(?:input|select)[^>]*/?>""", RegexOption.IGNORE_CASE).replace(result, "")
+        // Nesting-aware removal FIRST — must run before removeByClassPattern which uses
+        // simple regex that breaks on nested divs and would corrupt the structure.
+        result = removeNestedDivs(result, Regex("""<div[^>]+id="comments"[^>]*>""", RegexOption.IGNORE_CASE))
+        result = removeNestedDivs(result, Regex("""<div[^>]+id="comment-modal[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
+        result = removeNestedDivs(result, Regex("""<div[^>]+id="inactivity-popup"[^>]*>""", RegexOption.IGNORE_CASE))
+        result = removeNestedDivs(result, Regex("""<div[^>]+id="video-container"[^>]*>""", RegexOption.IGNORE_CASE))
+        result = removeNestedDivs(result, Regex("""<div[^>]+class="[^"]*\bmodal\b[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
+        result = removeNestedDivs(result, Regex("""<div[^>]+class="[^"]*recirculation[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
+        result = removeNestedDivs(result, Regex("""<div[^>]+class="[^"]*contentteaser[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
+        result = removeNestedDivs(result, Regex("""<div[^>]+class="[^"]*notifications[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
+        result = removeNestedDivs(result, Regex("""<div[^>]+class="[^"]*\bbox-content\b[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
         result = removeByClassPattern(result,
             "ad-", "teaser", "banner", "notice-banner", "cookie", "comment",
-            "login", "plus-tafel", "plus-teaser", "box-content", "contentteaser",
+            "login", "plus-tafel", "plus-teaser", "contentteaser",
             "sidebar", "newsletter", "social", "anzeige", "magazine", "menu",
             "toolbar", "breadcrumb", "topnav", "nav-", "a-navigation",
             "special", "druckansicht", "kommentar", "heise-bot", "push-nach",
             // gamestar specific
             "content-meta", "content-label", "btn-tab", "do-toggle", "do-filter",
+            "taglist", "OUTBRAIN", "jad-placeholder",
+            "sticky-description", "content-view-count", "video-canvas",
+            "ads-row", "cmp-split",
             // decoder specific
             "entry-header", "copy-url", "decoder-ad", "decoder-highlight",
             "icon-share", "icon-comment", "icon-link", "sr-only", "not-prose"
@@ -192,7 +206,7 @@ object ArticleFetcher {
 
     /** Remove <ul>/<ol> elements that are navigation-style (mostly links/buttons, little text).
      *  Matches innermost lists first (no nested lists inside), then loops to peel outer layers. */
-    private fun removeNavigationLists(html: String): String {
+    internal fun removeNavigationLists(html: String): String {
         // Match only lists that do NOT contain nested <ul>/<ol> (innermost first)
         val leafListRegex = Regex(
             """<(ul|ol)\b[^>]*>(?:(?!<(?:ul|ol)\b)[\s\S]){0,10000}?</\1>""",
@@ -221,7 +235,7 @@ object ArticleFetcher {
     }
 
     /** Strip leading non-content junk before the first substantial <p> */
-    private fun stripLeadingJunk(html: String): String {
+    internal fun stripLeadingJunk(html: String): String {
         // Find the first <p> that has at least 50 chars of text
         val firstP = Regex("""<p[\s>][\s\S]*?</p>""", RegexOption.IGNORE_CASE).find(html) ?: return html
         val pText = firstP.value.replace(Regex("<[^>]*>"), "").trim()
@@ -262,7 +276,7 @@ object ArticleFetcher {
     }
 
     /** Remove images that are icons, template vars, plus badges, or placeholders */
-    private fun removeJunkImages(html: String): String {
+    internal fun removeJunkImages(html: String): String {
         return Regex(
             """<img[^>]*>""",
             RegexOption.IGNORE_CASE
@@ -280,6 +294,8 @@ object ArticleFetcher {
                 src.contains("arrow-") -> ""
                 // Tiny tracking pixels or cloudimg placeholders with template vars
                 src.contains("cloudimg.io") && src.contains("%7B") -> ""
+                // VG Wort and other 1x1 tracking pixels
+                tag.contains("""height="1"""") && tag.contains("""width="1"""") -> ""
                 else -> tag
             }
         }
@@ -317,7 +333,32 @@ object ArticleFetcher {
         return result
     }
 
-    private fun makeImagesAbsolute(html: String, baseUrl: String): String {
+    /** Remove all div blocks whose opening tag matches [openTagPattern], tracking nesting depth
+     *  to find the correct closing tag (unlike simple regex which breaks on nested divs). */
+    private fun removeNestedDivs(html: String, openTagPattern: Regex): String {
+        var result = html
+        while (true) {
+            val match = openTagPattern.find(result) ?: break
+            val start = match.range.first
+            val afterOpen = match.range.last + 1
+            var depth = 1
+            var i = afterOpen
+            var endIndex = -1
+            while (i < result.length && depth > 0) {
+                if (result.startsWith("<div", i, ignoreCase = true)) depth++
+                else if (result.startsWith("</div>", i, ignoreCase = true)) {
+                    depth--
+                    if (depth == 0) { endIndex = i + 6; break }
+                }
+                i++
+            }
+            if (endIndex < 0) break // malformed HTML, stop
+            result = result.substring(0, start) + result.substring(endIndex)
+        }
+        return result
+    }
+
+    internal fun makeImagesAbsolute(html: String, baseUrl: String): String {
         if (baseUrl.isEmpty()) return html
 
         var result = Regex("""src="(/[^"]+)"""").replace(html) { match ->
@@ -339,7 +380,8 @@ object ArticleFetcher {
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    * { box-sizing: border-box; }
+                    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+                    html { background: #1A1A2E; }
                     body {
                         background: #1A1A2E;
                         color: #E0E0E0;

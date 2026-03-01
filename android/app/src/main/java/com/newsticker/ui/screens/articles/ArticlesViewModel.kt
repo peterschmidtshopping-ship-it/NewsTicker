@@ -49,6 +49,9 @@ class ArticlesViewModel(application: Application) : AndroidViewModel(application
     private val _loadingContent = MutableStateFlow<Set<String>>(emptySet())
     val loadingContent: StateFlow<Set<String>> = _loadingContent
 
+    /** Tracked locally for markRead positioning — NOT in _uiState to avoid recomposition on every swipe */
+    private var _currentPage: Int = 0
+
     init {
         loadArticles()
     }
@@ -104,7 +107,7 @@ class ArticlesViewModel(application: Application) : AndroidViewModel(application
                 if (updated.isEmpty()) {
                     _uiState.value = UiState.Loaded(articles = emptyList(), currentPage = 0)
                 } else {
-                    val newPage = current.currentPage.coerceAtMost(updated.size - 1)
+                    val newPage = _currentPage.coerceAtMost(updated.size - 1)
                     _uiState.value = current.copy(articles = updated, currentPage = newPage)
                 }
             }
@@ -112,9 +115,6 @@ class ArticlesViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun updateCurrentPage(page: Int) {
-        val current = _uiState.value
-        if (current is UiState.Loaded) {
-            _uiState.value = current.copy(currentPage = page)
-        }
+        _currentPage = page
     }
 }

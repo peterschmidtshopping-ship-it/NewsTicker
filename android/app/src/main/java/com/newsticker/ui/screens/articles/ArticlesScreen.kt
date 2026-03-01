@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -39,8 +40,6 @@ fun ArticlesScreen(
     viewModel: ArticlesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val contentCache by viewModel.contentCache.collectAsState()
-    val loadingContent by viewModel.loadingContent.collectAsState()
 
     Scaffold(
         topBar = {
@@ -146,17 +145,17 @@ fun ArticlesScreen(
                         ArticlePager(
                             articles = state.articles,
                             pagerState = pagerState,
-                            contentCache = contentCache,
-                            loadingContent = loadingContent,
+                            contentCacheFlow = viewModel.contentCache,
+                            loadingContentFlow = viewModel.loadingContent,
                             onMarkRead = { article -> viewModel.markRead(article) },
                             onLoadContent = { url, imageUrl, title -> viewModel.loadArticleContent(url, imageUrl, title) }
                         )
 
-                        // Page indicator
-                        Text(
-                            text = "${state.currentPage + 1} / ${state.articles.size}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                        // Page indicator (own composable = own restart scope,
+                        // so reading pagerState.currentPage doesn't recompose ArticlePager)
+                        PageIndicator(
+                            pagerState = pagerState,
+                            pageCount = state.articles.size,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .padding(bottom = 16.dp)
@@ -187,4 +186,16 @@ fun ArticlesScreen(
             }
         }
     }
+}
+
+/** Separate composable so reading pagerState.currentPage has its own restart scope
+ *  and doesn't trigger recomposition of the parent (which contains ArticlePager). */
+@Composable
+private fun PageIndicator(pagerState: PagerState, pageCount: Int, modifier: Modifier = Modifier) {
+    Text(
+        text = "${pagerState.currentPage + 1} / $pageCount",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+        modifier = modifier
+    )
 }
