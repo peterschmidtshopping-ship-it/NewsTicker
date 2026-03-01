@@ -39,6 +39,8 @@ fun ArticlesScreen(
     viewModel: ArticlesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val contentCache by viewModel.contentCache.collectAsState()
+    val loadingContent by viewModel.loadingContent.collectAsState()
 
     Scaffold(
         topBar = {
@@ -144,7 +146,10 @@ fun ArticlesScreen(
                         ArticlePager(
                             articles = state.articles,
                             pagerState = pagerState,
-                            onMarkRead = { article -> viewModel.markRead(article) }
+                            contentCache = contentCache,
+                            loadingContent = loadingContent,
+                            onMarkRead = { article -> viewModel.markRead(article) },
+                            onLoadContent = { url, imageUrl, title -> viewModel.loadArticleContent(url, imageUrl, title) }
                         )
 
                         // Page indicator

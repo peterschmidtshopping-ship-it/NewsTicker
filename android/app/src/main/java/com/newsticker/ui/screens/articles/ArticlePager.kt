@@ -12,7 +12,10 @@ import com.newsticker.data.model.Article
 fun ArticlePager(
     articles: List<Article>,
     pagerState: PagerState,
+    contentCache: Map<String, ContentState>,
+    loadingContent: Set<String>,
     onMarkRead: (Article) -> Unit,
+    onLoadContent: (String, String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     HorizontalPager(
@@ -24,7 +27,10 @@ fun ArticlePager(
             val article = articles[page]
             ArticlePage(
                 article = article,
-                onMarkRead = { onMarkRead(article) }
+                contentState = contentCache[article.link],
+                isLoadingContent = loadingContent.contains(article.link),
+                onMarkRead = { onMarkRead(article) },
+                onLoadContent = { onLoadContent(article.link, article.imageUrl, article.title) }
             )
         } else {
             Box(modifier = Modifier.fillMaxSize())

@@ -23,7 +23,7 @@ object ArticleFetcher {
 
     private const val MIN_CONTENT_LENGTH = 200
 
-    suspend fun fetchArticle(url: String, imageUrl: String = ""): ArticleContent = withContext(Dispatchers.IO) {
+    suspend fun fetchArticle(url: String, imageUrl: String = "", title: String = ""): ArticleContent = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder()
                 .url(url)
@@ -38,6 +38,7 @@ object ArticleFetcher {
             val baseUrl = getBaseUrl(url)
             var extracted = extractGenericContent(html)
             extracted = removeJunkImages(extracted)
+            if (title.isNotEmpty()) extracted = removeDuplicateTitle(extracted, title)
 
             // Check if we actually got meaningful article text
             val textOnly = extracted.replace(Regex("<[^>]*>"), "").trim()
@@ -59,6 +60,22 @@ object ArticleFetcher {
             ArticleContent.Html(wrapInDarkTheme(leadImage + withAbsoluteImages))
         } catch (_: Exception) {
             ArticleContent.LoadUrl(url)
+        }
+    }
+
+    /** Remove heading elements whose text matches the article title (already shown in the native UI). */
+    private fun removeDuplicateTitle(html: String, title: String): String {
+        val titleWords = title.lowercase().split(Regex("\\W+")).filter { it.length > 2 }.toSet()
+        if (titleWords.size < 3) return html
+        return Regex(
+            """<(h[1-6])[^>]*>[\s\S]{0,500}?</\1>""",
+            RegexOption.IGNORE_CASE
+        ).replace(html) { match ->
+            val text = match.value.replace(Regex("<[^>]*>"), "").trim()
+            val headingWords = text.lowercase().split(Regex("\\W+")).filter { it.length > 2 }.toSet()
+            val overlap = headingWords.intersect(titleWords)
+            // Remove if most heading words appear in the title
+            if (headingWords.size >= 2 && overlap.size >= headingWords.size * 0.6) "" else match.value
         }
     }
 
