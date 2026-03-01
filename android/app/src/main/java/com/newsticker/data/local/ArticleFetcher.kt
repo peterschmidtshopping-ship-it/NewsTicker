@@ -129,12 +129,15 @@ object ArticleFetcher {
             RegexOption.IGNORE_CASE
         ).find(cleaned)?.groupValues?.get(1)
 
-        // Pick the candidate with the most text content.
-        // Many sites use <article> for teasers, with the real content in <main>.
-        val candidates = listOfNotNull(mainHtml, articleHtml, bodyHtml)
-        val content = candidates.maxByOrNull { textLength(it) } ?: cleaned
+        // Prefer article > main > body when they have enough content, to avoid
+        // picking up comments, sidebars, etc. that inflate the body's text length.
+        val content = listOfNotNull(articleHtml, mainHtml).firstOrNull { textLength(it) >= MIN_CONTENT_LENGTH }
+            ?: listOfNotNull(mainHtml, articleHtml, bodyHtml).maxByOrNull { textLength(it) }
+            ?: cleaned
 
-        var result = stripTags(content, "script", "style", "nav", "footer", "aside", "svg", "noscript", "form", "header", "section")
+        var result = stripTags(content, "script", "style", "nav", "footer", "aside", "svg", "noscript", "form", "header", "section", "textarea", "button")
+        // Remove stray form elements (input, select) that survive after form/textarea stripping
+        result = Regex("""<(?:input|select)[^>]*/?>""", RegexOption.IGNORE_CASE).replace(result, "")
         result = removeByClassPattern(result,
             "ad-", "teaser", "banner", "notice-banner", "cookie", "comment",
             "login", "plus-tafel", "plus-teaser", "box-content", "contentteaser",
