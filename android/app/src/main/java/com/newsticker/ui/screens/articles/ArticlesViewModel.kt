@@ -98,6 +98,14 @@ class ArticlesViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun markRead(article: Article) {
+        markRead(article, preferSameFeed = false)
+    }
+
+    fun markReadAndOpenSameFeed(article: Article) {
+        markRead(article, preferSameFeed = true)
+    }
+
+    private fun markRead(article: Article, preferSameFeed: Boolean) {
         viewModelScope.launch {
             readStore.markRead(article.link)
 
@@ -107,7 +115,14 @@ class ArticlesViewModel(application: Application) : AndroidViewModel(application
                 if (updated.isEmpty()) {
                     _uiState.value = UiState.Loaded(articles = emptyList(), currentPage = 0)
                 } else {
-                    val newPage = _currentPage.coerceAtMost(updated.size - 1)
+                    val defaultPage = _currentPage.coerceAtMost(updated.size - 1)
+                    val newPage = if (preferSameFeed) {
+                        updated.indexOfFirstFrom(defaultPage) { it.source == article.source }
+                            .takeIf { it >= 0 }
+                            ?: defaultPage
+                    } else {
+                        defaultPage
+                    }
                     _uiState.value = current.copy(articles = updated, currentPage = newPage)
                 }
             }
@@ -117,4 +132,14 @@ class ArticlesViewModel(application: Application) : AndroidViewModel(application
     fun updateCurrentPage(page: Int) {
         _currentPage = page
     }
+}
+
+private inline fun <T> List<T>.indexOfFirstFrom(
+    startIndex: Int,
+    predicate: (T) -> Boolean
+): Int {
+    for (index in startIndex until size) {
+        if (predicate(this[index])) return index
+    }
+    return -1
 }

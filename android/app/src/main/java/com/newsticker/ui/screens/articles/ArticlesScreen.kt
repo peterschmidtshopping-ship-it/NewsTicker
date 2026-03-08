@@ -166,6 +166,9 @@ fun ArticlesScreen(
                             contentCacheFlow = viewModel.contentCache,
                             loadingContentFlow = viewModel.loadingContent,
                             onMarkRead = { article -> viewModel.markRead(article) },
+                            onMarkReadAndOpenSameFeed = { article ->
+                                viewModel.markReadAndOpenSameFeed(article)
+                            },
                             onLoadContent = { url, imageUrl, title -> viewModel.loadArticleContent(url, imageUrl, title) }
                         )
 

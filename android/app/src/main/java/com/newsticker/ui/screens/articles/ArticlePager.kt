@@ -20,6 +20,7 @@ fun ArticlePager(
     contentCacheFlow: StateFlow<Map<String, ContentState>>,
     loadingContentFlow: StateFlow<Set<String>>,
     onMarkRead: (Article) -> Unit,
+    onMarkReadAndOpenSameFeed: (Article) -> Unit,
     onLoadContent: (String, String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -46,6 +47,9 @@ fun ArticlePager(
 
             // Stable lambda references so ArticlePage can skip recomposition
             val stableMarkRead = remember(article.link) { { onMarkRead(article) } }
+            val stableMarkReadAndOpenSameFeed = remember(article.link) {
+                { onMarkReadAndOpenSameFeed(article) }
+            }
             val stableLoadContent = remember(article.link) {
                 { onLoadContent(article.link, article.imageUrl, article.title) }
             }
@@ -55,6 +59,7 @@ fun ArticlePager(
                 contentState = contentState,
                 isLoadingContent = isLoading,
                 onMarkRead = stableMarkRead,
+                onMarkReadAndOpenSameFeed = stableMarkReadAndOpenSameFeed,
                 onLoadContent = stableLoadContent
             )
         } else {

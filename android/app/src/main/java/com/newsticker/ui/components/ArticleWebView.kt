@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.view.MotionEvent
 import android.view.View
 import android.webkit.JavascriptInterface
@@ -11,7 +13,9 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlin.math.abs
@@ -27,16 +31,25 @@ fun ArticleWebView(
     baseUrl: String,
     onBrowserClick: () -> Unit,
     onGelesenClick: () -> Unit,
+    onSameFeedClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val lastLoadedHtml = remember { arrayOf("") }
+    // Keep callback refs fresh so the JS bridge always invokes the latest lambdas
+    val currentBrowserClick by rememberUpdatedState(onBrowserClick)
+    val currentGelesenClick by rememberUpdatedState(onGelesenClick)
+    val currentSameFeedClick by rememberUpdatedState(onSameFeedClick)
 
     AndroidView(
         factory = { context ->
             createWebView(context, openLinksExternally = true).apply {
                 settings.javaScriptEnabled = true
                 addJavascriptInterface(
-                    BottomButtonsBridge(onBrowserClick, onGelesenClick),
+                    BottomButtonsBridge(
+                        { currentBrowserClick() },
+                        { currentGelesenClick() },
+                        { currentSameFeedClick() }
+                    ),
                     "AndroidBridge"
                 )
                 lastLoadedHtml[0] = html
@@ -84,16 +97,24 @@ fun ArticleWebViewUrl(
 
 private class BottomButtonsBridge(
     private val onBrowserClick: () -> Unit,
-    private val onGelesenClick: () -> Unit
+    private val onGelesenClick: () -> Unit,
+    private val onSameFeedClick: () -> Unit
 ) {
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     @JavascriptInterface
     fun onBrowserClick() {
-        onBrowserClick.invoke()
+        mainHandler.post { onBrowserClick.invoke() }
     }
 
     @JavascriptInterface
     fun onGelesenClick() {
-        onGelesenClick.invoke()
+        mainHandler.post { onGelesenClick.invoke() }
+    }
+
+    @JavascriptInterface
+    fun onSameFeedClick() {
+        mainHandler.post { onSameFeedClick.invoke() }
     }
 }
 

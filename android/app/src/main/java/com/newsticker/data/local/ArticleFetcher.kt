@@ -411,9 +411,11 @@ object ArticleFetcher {
                         display: flex;
                         gap: 8px;
                         margin: 24px 0 32px;
+                        flex-wrap: wrap;
                     }
                     .bottom-actions button {
-                        flex: 1;
+                        flex: 1 1 30%;
+                        min-width: 0;
                         padding: 12px 16px;
                         border-radius: 24px;
                         font-size: 16px;
@@ -430,12 +432,18 @@ object ArticleFetcher {
                         background: #2A2A3E;
                         color: #E0E0E0;
                     }
+                    .btn-same-feed {
+                        background: transparent;
+                        border: 1px solid #E94560 !important;
+                        color: #E94560;
+                    }
                 </style>
             </head>
             <body>
                 $content
                 <div class="bottom-actions">
                     <button class="btn-browser" onclick="AndroidBridge.onBrowserClick()">Browser</button>
+                    <button class="btn-same-feed" onclick="AndroidBridge.onSameFeedClick()">Gleicher Feed</button>
                     <button class="btn-gelesen" onclick="AndroidBridge.onGelesenClick()">Gelesen</button>
                 </div>
             </body>
