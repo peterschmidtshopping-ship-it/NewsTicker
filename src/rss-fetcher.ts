@@ -4,11 +4,21 @@ import { FEEDS, ARTICLES_PER_FEED, type FeedConfig } from "./feeds.config.js";
 
 const parser = new Parser();
 
+let feedWarnings: string[] = [];
+
 async function fetchFeed(
   feed: FeedConfig,
   readUrls: Set<string>,
 ): Promise<Article[]> {
-  const result = await parser.parseURL(feed.url);
+  let result;
+  try {
+    result = await parser.parseURL(feed.url);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Failed to fetch feed "${feed.source}": ${message}`);
+    feedWarnings.push(`${feed.source}: ${message}`);
+    return [];
+  }
 
   const articles: Article[] = [];
   for (const item of result.items) {
@@ -43,9 +53,10 @@ function interleave(arrays: Article[][]): Article[] {
 
 export async function fetchArticles(
   readUrls: Set<string> = new Set(),
-): Promise<Article[]> {
+): Promise<{ articles: Article[]; warnings: string[] }> {
+  feedWarnings = [];
   const results = await Promise.all(
     FEEDS.map((feed) => fetchFeed(feed, readUrls)),
   );
-  return interleave(results);
+  return { articles: interleave(results), warnings: feedWarnings };
 }

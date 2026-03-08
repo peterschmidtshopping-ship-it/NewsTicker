@@ -41,8 +41,11 @@ app.post("/api/articles/read", async (req, res) => {
 app.get("/api/articles", async (_req, res) => {
   try {
     const readUrls = await loadReadUrls();
-    const articles = await fetchArticles(readUrls);
+    const { articles, warnings } = await fetchArticles(readUrls);
     const result = await filterArticles(articles);
+    if (warnings.length > 0) {
+      result.warning = warnings.join("; ");
+    }
     writeResultFile(result).catch((err) =>
       console.error("Failed to write result file:", err)
     );
@@ -68,8 +71,8 @@ app.get("/api/articles/stream", async (_req, res) => {
 
   try {
     const readUrls = await loadReadUrls();
-    const articles = await fetchArticles(readUrls);
-    send("init", { total: articles.length });
+    const { articles, warnings } = await fetchArticles(readUrls);
+    send("init", { total: articles.length, warnings: warnings.length > 0 ? warnings : undefined });
 
     const FIRST_BATCH = 10;
 
@@ -82,6 +85,10 @@ app.get("/api/articles/stream", async (_req, res) => {
         send("batch-done", partial);
       },
     });
+
+    if (warnings.length > 0) {
+      result.warning = warnings.join("; ");
+    }
 
     writeResultFile(result).catch((err) =>
       console.error("Failed to write result file:", err)
@@ -96,6 +103,23 @@ app.get("/api/articles/stream", async (_req, res) => {
   }
 
   res.end();
+});
+
+app.get("/api/articles/all", async (_req, res) => {
+  try {
+    const readUrls = await loadReadUrls();
+    const { articles, warnings } = await fetchArticles(readUrls);
+    const response: { articles: Article[]; warning?: string } = { articles };
+    if (warnings.length > 0) {
+      response.warning = warnings.join("; ");
+    }
+    res.json(response);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("Error in /api/articles/all:", message);
+    res.status(502).json({ error: message });
+  }
 });
 
 app.get("/api/article-content", async (req, res) => {

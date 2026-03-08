@@ -16,15 +16,6 @@ data class FeedConfig(val url: String, val source: String)
 
 object RssFetcher {
 
-    private val FEEDS = listOf(
-        FeedConfig("https://www.heise.de/rss/heise.rdf", "heise"),
-        FeedConfig("https://www.tagesschau.de/infoservices/alle-meldungen-100~rss2.xml", "tagesschau"),
-        FeedConfig("https://www.zdfheute.de/rss/zdf/nachrichten", "heute"),
-        FeedConfig("https://www.gamestar.de/news/rss/news.rss", "gamestar"),
-        FeedConfig("https://www.faz.net/rss/aktuell", "faz"),
-        FeedConfig("https://www.handelsblatt.com/contentexport/feed/schlagzeilen", "handelsblatt"),
-    )
-
     private const val ARTICLES_PER_FEED = 10
 
     private val client = OkHttpClient.Builder()
@@ -33,11 +24,12 @@ object RssFetcher {
         .build()
 
     suspend fun fetchAllFeeds(
+        feeds: List<FeedConfig>,
         readUrls: Set<String> = emptySet()
     ): Pair<List<Article>, List<String>> = withContext(Dispatchers.IO) {
         val warnings = mutableListOf<String>()
 
-        val results = FEEDS.map { feed ->
+        val results = feeds.map { feed ->
             async {
                 try {
                     fetchFeed(feed, readUrls)
@@ -81,6 +73,7 @@ object RssFetcher {
         var title = ""
         var link = ""
         var description = ""
+        var contentEncoded = ""
         var pubDate = ""
         var currentTag = ""
 
@@ -93,6 +86,7 @@ object RssFetcher {
                         title = ""
                         link = ""
                         description = ""
+                        contentEncoded = ""
                         pubDate = ""
                     }
                     // Atom feeds use <link href="..."/>
@@ -107,7 +101,8 @@ object RssFetcher {
                         when (currentTag) {
                             "title" -> title += text
                             "link" -> if (link.isEmpty()) link += text
-                            "description", "summary", "content:encoded" -> description += text
+                            "description", "summary" -> description += text
+                            "content:encoded" -> contentEncoded += text
                             "pubDate", "published", "updated", "dc:date" -> pubDate += text
                         }
                     }
@@ -117,8 +112,15 @@ object RssFetcher {
                     if (parser.name == "item" || parser.name == "entry") {
                         inItem = false
                         if (link.isNotEmpty() && !readUrls.contains(link) && articles.size < ARTICLES_PER_FEED) {
+                            // Extract image URL from content:encoded (if available)
+                            val imageUrl = Regex("""<img[^>]+src="([^"]+)"""")
+                                .find(contentEncoded)?.groupValues?.get(1) ?: ""
+
+                            // Use content:encoded for description if description is empty
+                            val rawDescription = description.ifEmpty { contentEncoded }
+
                             // Strip HTML tags from description
-                            val cleanDescription = description
+                            val cleanDescription = rawDescription
                                 .replace(Regex("<[^>]*>"), "")
                                 .replace("&amp;", "&")
                                 .replace("&lt;", "<")
@@ -133,7 +135,8 @@ object RssFetcher {
                                     description = cleanDescription,
                                     link = link.trim(),
                                     pubDate = pubDate.trim(),
-                                    source = source
+                                    source = source,
+                                    imageUrl = imageUrl
                                 )
                             )
                         }

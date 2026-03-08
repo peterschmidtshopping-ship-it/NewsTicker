@@ -1,0 +1,15 @@
+{
+  "articlesPerFeed": 8,
+  "feeds": [
+    { "enabled": true, "name": "heiseTop", "url": "https://www.heise.de/rss/heise-top-atom.xml" },
+    { "enabled": true, "name": "heute", "url": "https://www.zdfheute.de/rss/zdf/nachrichten" },
+    { "enabled": true, "name": "heiseKI", "url": "https://www.heise.de/thema/Kuenstliche-Intelligenz.xml" },
+    { "enabled": true, "name": "gamestar", "url": "https://www.gamestar.de/news/rss/news.rss" },
+    { "enabled": true, "name": "faz", "url": "https://www.faz.net/rss/aktuell" },
+    { "enabled": true, "name": "tagesschau", "url": "https://www.tagesschau.de/infoservices/alle-meldungen-100~rss2.xml" },
+    { "enabled": true, "name": "zeitHealth", "url": "https://newsfeed.zeit.de/gesundheit/index" },
+    { "enabled": true, "name": "handelsblatt", "url": "https://www.handelsblatt.com/contentexport/feed/schlagzeilen" },
+    { "enabled": false, "name": "decoder", "url": "https://the-decoder.com/feed" },
+    { "enabled": false, "name": "ABDA", "url": "https://www.abda.de/?type=1102" }
+  ]
+}

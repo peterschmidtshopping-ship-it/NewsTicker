@@ -15,7 +15,7 @@ import com.newsticker.ui.theme.sourceColor
 @Composable
 fun SourceBadge(source: String, modifier: Modifier = Modifier) {
     Text(
-        text = source.uppercase(),
+        text = source,
         style = MaterialTheme.typography.labelSmall,
         color = Color.White,
         modifier = modifier

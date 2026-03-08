@@ -1,14 +1,22 @@
+import { readFileSync } from "fs";
+import { join } from "path";
+
 export interface FeedConfig {
   url: string;
   source: string;
 }
 
-export const FEEDS: FeedConfig[] = [
-  { url: "https://www.heise.de/rss/heise.rdf", source: "heise" },
-  { url: "https://www.spiegel.de/schlagzeilen/tops/index.rss", source: "spiegel" },
-  { url: "https://www.gamestar.de/news/rss/news.rss", source: "gamestar" },
-  { url: "https://www.faz.net/rss/aktuell", source: "faz" },
-  { url: "https://www.handelsblatt.com/contentexport/feed/schlagzeilen", source: "handelsblatt" },
-];
+interface FeedsJson {
+  articlesPerFeed: number;
+  feeds: { enabled: boolean; name: string; url: string }[];
+}
 
-export const ARTICLES_PER_FEED = 10;
+const feedsJson: FeedsJson = JSON.parse(
+  readFileSync(join(__dirname, "..", "feeds.json"), "utf-8")
+);
+
+export const FEEDS: FeedConfig[] = feedsJson.feeds
+  .filter((f) => f.enabled)
+  .map((f) => ({ url: f.url, source: f.name }));
+
+export const ARTICLES_PER_FEED = feedsJson.articlesPerFeed;
