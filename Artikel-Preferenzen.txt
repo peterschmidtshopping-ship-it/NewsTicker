@@ -1,35 +1,10 @@
-Preferenzen für heise Artikel:
-- keine heise Artikel über Sicherheitslücken/Hacks
+Preferenzen für Artikel:
+- zeige Grundsätzlich alle Artikel über alle Themen an.
 
-- keine heise Artikel über Sicherheit/Datenschutz von personenbezogenen Daten
+Es sei denn:
 
-- keine heise Artikel über Abhörskandal
+- zeige keine Artikel an über Wintersport, Motersport, Workshop angebote, Dieselskandal
 
-- keine heise Artikel über Abgasskandal, Dieselskandal
+- zeige Artikel an über PC Spiele, aber nicht über Playstation, Xbox, Wii
 
-- keine heise Artikel über die Schufa
-
-- keine heise Artikel über Workshop Angebote anzeigen
-
-- heise Artikel über Cyberattacken/Angriffe anzeigen
-
-- heise Artikel über Softwareentwicklung anzeigen
-
-- heise Artikel über neue Forschungsergebnisse anzeigen
-
-- heise Artikel über KI Themen unbedingt anzeigen
-
-Preferenzen für spiegel Artikel:
-- zeige alle Spiegel Artikel an
-- zeige keine Spiegel Artikel über Wintersport, Motersport an
-
-Preferenzen für gamestar Artikel:
-- zeige alle gamestar Artikel an
-- zeige keine gamestar Artikel über Playstation, Xbox, Wii an
-
-Preferenzen für faz Artikel:
-- zeige alle faz Artikel an
-- zeige keine faz Artikel über Wintersport, Motersport an
-
-Preferenzen für Handelsblatt Artikel:
-- zeige alle Handelsblatt Artikel an
+- zeige Artikel zum Eppstein Skandal an
