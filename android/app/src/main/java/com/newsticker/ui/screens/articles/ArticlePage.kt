@@ -19,7 +19,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -44,9 +49,26 @@ fun ArticlePage(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var isSpeaking by remember(article.link) { mutableStateOf(false) }
+    val speaker = remember(article.link) {
+        ArticleSpeaker(context) { speaking -> isSpeaking = speaking }
+    }
+
+    DisposableEffect(speaker) {
+        onDispose {
+            speaker.shutdown()
+        }
+    }
 
     LaunchedEffect(article.link) {
+        speaker.stop()
         onLoadContent()
+    }
+
+    LaunchedEffect(contentState) {
+        if (isSpeaking) {
+            speaker.speak(buildSpeechText(article, contentState))
+        }
     }
 
     Column(
@@ -54,7 +76,6 @@ fun ArticlePage(
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
-        // Source badge + date row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -72,7 +93,6 @@ fun ArticlePage(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Title
         Text(
             text = article.title,
             style = MaterialTheme.typography.titleLarge,
@@ -81,31 +101,55 @@ fun ArticlePage(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Action buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
                 onClick = {
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse(article.link))
-                    )
+                    if (isSpeaking) {
+                        speaker.stop()
+                    } else {
+                        speaker.speak(buildSpeechText(article, contentState))
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(if (isSpeaking) "Stop" else "Vorlesen")
+            }
+
+            OutlinedButton(
+                onClick = {
+                    speaker.stop()
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.link)))
                 },
                 modifier = Modifier.weight(1f)
             ) {
                 Text("In Browser lesen")
             }
+        }
 
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             OutlinedButton(
-                onClick = onMarkReadAndOpenSameFeed,
+                onClick = {
+                    speaker.stop()
+                    onMarkReadAndOpenSameFeed()
+                },
                 modifier = Modifier.weight(1f)
             ) {
                 Text("Gelesen gleicher Feed")
             }
 
             Button(
-                onClick = onMarkRead,
+                onClick = {
+                    speaker.stop()
+                    onMarkRead()
+                },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -117,7 +161,6 @@ fun ArticlePage(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Article content
         when {
             isLoadingContent && contentState == null -> {
                 Box(
@@ -140,22 +183,29 @@ fun ArticlePage(
                     }
                 }
             }
+
             contentState is ContentState.Html -> {
                 ArticleWebView(
                     html = contentState.html,
                     baseUrl = contentState.baseUrl,
                     onBrowserClick = {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse(article.link))
-                        )
+                        speaker.stop()
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.link)))
                     },
-                    onGelesenClick = onMarkRead,
-                    onSameFeedClick = onMarkReadAndOpenSameFeed,
+                    onGelesenClick = {
+                        speaker.stop()
+                        onMarkRead()
+                    },
+                    onSameFeedClick = {
+                        speaker.stop()
+                        onMarkReadAndOpenSameFeed()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
                 )
             }
+
             contentState is ContentState.DirectUrl -> {
                 ArticleWebViewUrl(
                     url = contentState.url,
@@ -164,6 +214,7 @@ fun ArticlePage(
                         .weight(1f)
                 )
             }
+
             else -> {
                 Box(modifier = Modifier.weight(1f))
             }
