@@ -25,14 +25,14 @@ object RssFetcher {
 
     suspend fun fetchAllFeeds(
         feeds: List<FeedConfig>,
-        readUrls: Set<String> = emptySet()
+        readHistory: ReadHistory = ReadHistory(emptySet(), emptySet())
     ): Pair<List<Article>, List<String>> = withContext(Dispatchers.IO) {
         val warnings = mutableListOf<String>()
 
         val results = feeds.map { feed ->
             async {
                 try {
-                    fetchFeed(feed, readUrls)
+                    fetchFeed(feed)
                 } catch (e: Exception) {
                     val message = e.message ?: e.toString()
                     synchronized(warnings) {
@@ -43,10 +43,10 @@ object RssFetcher {
             }
         }.awaitAll()
 
-        Pair(interleave(results), warnings)
+        Pair(filterUnreadAndUnique(interleave(results), readHistory), warnings)
     }
 
-    private fun fetchFeed(feed: FeedConfig, readUrls: Set<String>): List<Article> {
+    private fun fetchFeed(feed: FeedConfig): List<Article> {
         val request = Request.Builder()
             .url(feed.url)
             .header("User-Agent", "NewsTicker/1.0")
@@ -59,10 +59,10 @@ object RssFetcher {
             response.body?.string() ?: throw Exception("Empty response")
         }
 
-        return parseRss(responseBody, feed.source, readUrls)
+        return parseRss(responseBody, feed.source)
     }
 
-    private fun parseRss(xml: String, source: String, readUrls: Set<String>): List<Article> {
+    private fun parseRss(xml: String, source: String): List<Article> {
         val factory = XmlPullParserFactory.newInstance()
         factory.isNamespaceAware = false
         val parser = factory.newPullParser()
@@ -111,7 +111,7 @@ object RssFetcher {
                 XmlPullParser.END_TAG -> {
                     if (parser.name == "item" || parser.name == "entry") {
                         inItem = false
-                        if (link.isNotEmpty() && !readUrls.contains(link) && articles.size < ARTICLES_PER_FEED) {
+                        if (link.isNotEmpty() && articles.size < ARTICLES_PER_FEED) {
                             // Extract image URL from content:encoded (if available)
                             val imageUrl = Regex("""<img[^>]+src="([^"]+)"""")
                                 .find(contentEncoded)?.groupValues?.get(1) ?: ""
@@ -148,6 +148,30 @@ object RssFetcher {
         }
 
         return articles
+    }
+
+    private fun filterUnreadAndUnique(
+        articles: List<Article>,
+        readHistory: ReadHistory
+    ): List<Article> {
+        val seenUrls = mutableSetOf<String>()
+        val seenTitles = mutableSetOf<String>()
+        return articles.filter { article ->
+            val normalizedUrl = ReadStore.normalizeUrl(article.link)
+            val normalizedTitle = ReadStore.normalizeTitle(article.title)
+            val duplicate =
+                (normalizedUrl.isNotEmpty() &&
+                    (readHistory.urls.contains(normalizedUrl) || seenUrls.contains(normalizedUrl))) ||
+                (normalizedTitle.isNotEmpty() &&
+                    (readHistory.titles.contains(normalizedTitle) || seenTitles.contains(normalizedTitle)))
+
+            if (!duplicate) {
+                if (normalizedUrl.isNotEmpty()) seenUrls.add(normalizedUrl)
+                if (normalizedTitle.isNotEmpty()) seenTitles.add(normalizedTitle)
+            }
+
+            !duplicate
+        }
     }
 
     private fun interleave(arrays: List<List<Article>>): List<Article> {

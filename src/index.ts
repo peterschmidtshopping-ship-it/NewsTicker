@@ -6,7 +6,7 @@ import { writeFile } from "node:fs/promises";
 import { fetchArticles } from "./rss-fetcher.js";
 import { filterArticles } from "./article-filter.js";
 import { fetchArticleHtml } from "./article-fetcher.js";
-import { loadReadUrls, markRead } from "./read-store.js";
+import { loadReadHistory, markRead } from "./read-store.js";
 import type { Article, RejectedArticle, FilteredResponse } from "./types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -24,12 +24,13 @@ app.use(express.static(resolve(__dirname, "..", "public")));
 
 app.post("/api/articles/read", async (req, res) => {
   const url = req.body?.url;
+  const title = req.body?.title;
   if (!url || typeof url !== "string") {
     res.status(400).json({ error: "Missing url" });
     return;
   }
   try {
-    await markRead(url);
+    await markRead(url, typeof title === "string" ? title : "");
     res.json({ ok: true });
   } catch (error) {
     const message =
@@ -40,8 +41,8 @@ app.post("/api/articles/read", async (req, res) => {
 
 app.get("/api/articles", async (_req, res) => {
   try {
-    const readUrls = await loadReadUrls();
-    const { articles, warnings } = await fetchArticles(readUrls);
+    const readHistory = await loadReadHistory();
+    const { articles, warnings } = await fetchArticles(readHistory);
     const result = await filterArticles(articles);
     if (warnings.length > 0) {
       result.warning = warnings.join("; ");
@@ -70,8 +71,8 @@ app.get("/api/articles/stream", async (_req, res) => {
   };
 
   try {
-    const readUrls = await loadReadUrls();
-    const { articles, warnings } = await fetchArticles(readUrls);
+    const readHistory = await loadReadHistory();
+    const { articles, warnings } = await fetchArticles(readHistory);
     send("init", { total: articles.length, warnings: warnings.length > 0 ? warnings : undefined });
 
     const FIRST_BATCH = 10;
@@ -107,8 +108,8 @@ app.get("/api/articles/stream", async (_req, res) => {
 
 app.get("/api/articles/all", async (_req, res) => {
   try {
-    const readUrls = await loadReadUrls();
-    const { articles, warnings } = await fetchArticles(readUrls);
+    const readHistory = await loadReadHistory();
+    const { articles, warnings } = await fetchArticles(readHistory);
     const response: { articles: Article[]; warning?: string } = { articles };
     if (warnings.length > 0) {
       response.warning = warnings.join("; ");

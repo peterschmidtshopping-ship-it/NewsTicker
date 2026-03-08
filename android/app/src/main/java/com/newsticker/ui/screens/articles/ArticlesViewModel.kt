@@ -65,8 +65,8 @@ class ArticlesViewModel(application: Application) : AndroidViewModel(application
                 val feeds = feedSettings
                     .filter { it.enabled && it.url.isNotBlank() }
                     .map { FeedConfig(it.url, it.name) }
-                val readUrls = readStore.readUrls().first()
-                val (articles, warnings) = repository.fetchAllArticles(feeds, readUrls)
+                val readHistory = readStore.readHistory().first()
+                val (articles, warnings) = repository.fetchAllArticles(feeds, readHistory)
                 _uiState.value = UiState.Loaded(articles = articles, warnings = warnings)
             } catch (e: Exception) {
                 _uiState.value = UiState.Error(
@@ -107,11 +107,19 @@ class ArticlesViewModel(application: Application) : AndroidViewModel(application
 
     private fun markRead(article: Article, preferSameFeed: Boolean) {
         viewModelScope.launch {
-            readStore.markRead(article.link)
+            readStore.markRead(article.link, article.title)
 
             val current = _uiState.value
             if (current is UiState.Loaded) {
-                val updated = current.articles.filter { it.link != article.link }
+                val normalizedLink = ReadStore.normalizeUrl(article.link)
+                val normalizedTitle = ReadStore.normalizeTitle(article.title)
+                val updated = current.articles.filter { candidate ->
+                    val sameUrl = normalizedLink.isNotEmpty() &&
+                        ReadStore.normalizeUrl(candidate.link) == normalizedLink
+                    val sameTitle = normalizedTitle.isNotEmpty() &&
+                        ReadStore.normalizeTitle(candidate.title) == normalizedTitle
+                    !(sameUrl || sameTitle)
+                }
                 if (updated.isEmpty()) {
                     _uiState.value = UiState.Loaded(articles = emptyList(), currentPage = 0)
                 } else {
