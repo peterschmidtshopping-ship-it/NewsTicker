@@ -2,9 +2,12 @@ package com.newsticker.ui.screens.articles
 
 import android.content.Intent
 import android.net.Uri
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,8 +30,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.newsticker.R
 import com.newsticker.data.model.Article
 import com.newsticker.ui.components.ArticleWebView
 import com.newsticker.ui.components.ArticleWebViewUrl
@@ -105,7 +111,7 @@ fun ArticlePage(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedButton(
+            ImageActionButton(
                 onClick = {
                     if (isSpeaking) {
                         speaker.stop()
@@ -113,50 +119,41 @@ fun ArticlePage(
                         speaker.speak(buildSpeechText(article, contentState))
                     }
                 },
+                imageRes = R.drawable.text_to_speech,
+                contentDescription = if (isSpeaking) "Vorlesen stoppen" else "Vorlesen",
                 modifier = Modifier.weight(1f)
-            ) {
-                Text(if (isSpeaking) "Stop" else "Vorlesen")
-            }
+            )
 
-            OutlinedButton(
+            ImageActionButton(
                 onClick = {
                     speaker.stop()
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.link)))
                 },
+                imageRes = R.drawable.read_in_browser,
+                contentDescription = "In Browser lesen",
                 modifier = Modifier.weight(1f)
-            ) {
-                Text("In Browser lesen")
-            }
-        }
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(
+            ImageActionButton(
                 onClick = {
                     speaker.stop()
                     onMarkReadAndOpenSameFeed()
                 },
+                imageRes = R.drawable.article_read,
+                contentDescription = "Gelesen gleicher Feed",
                 modifier = Modifier.weight(1f)
-            ) {
-                Text("Gelesen gleicher Feed")
-            }
+            )
 
-            Button(
+            ImageActionButton(
                 onClick = {
                     speaker.stop()
                     onMarkRead()
                 },
+                imageRes = R.drawable.article_read_next_feed,
+                contentDescription = "Gelesen n\u00E4chster Feed",
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Text("Gelesen nächster Feed", color = MaterialTheme.colorScheme.onSurface)
-            }
+                filled = true
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -218,6 +215,46 @@ fun ArticlePage(
             else -> {
                 Box(modifier = Modifier.weight(1f))
             }
+        }
+    }
+}
+
+@Composable
+private fun ImageActionButton(
+    onClick: () -> Unit,
+    @DrawableRes imageRes: Int,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    filled: Boolean = false
+) {
+    if (filled) {
+        Button(
+            onClick = onClick,
+            modifier = modifier.height(88.dp),
+            contentPadding = PaddingValues(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Image(
+                painter = painterResource(id = imageRes),
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier.height(88.dp),
+            contentPadding = PaddingValues(8.dp)
+        ) {
+            Image(
+                painter = painterResource(id = imageRes),
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
         }
     }
 }

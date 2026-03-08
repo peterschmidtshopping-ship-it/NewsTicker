@@ -9,7 +9,8 @@ import java.util.concurrent.TimeUnit
 sealed class ArticleContent {
     /** Successfully extracted and themed HTML content */
     data class Html(val html: String) : ArticleContent()
-    /** Extraction failed — UI should load the URL directly in WebView */
+
+    /** Extraction failed, UI should load the URL directly in WebView */
     data class LoadUrl(val url: String) : ArticleContent()
 }
 
@@ -23,11 +24,18 @@ object ArticleFetcher {
 
     private const val MIN_CONTENT_LENGTH = 200
 
-    suspend fun fetchArticle(url: String, imageUrl: String = "", title: String = ""): ArticleContent = withContext(Dispatchers.IO) {
+    suspend fun fetchArticle(
+        url: String,
+        imageUrl: String = "",
+        title: String = ""
+    ): ArticleContent = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                .header(
+                    "User-Agent",
+                    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                )
                 .build()
 
             val html = client.newCall(request).execute().use { response ->
@@ -40,7 +48,7 @@ object ArticleFetcher {
             extracted = removeJunkImages(extracted)
             if (title.isNotEmpty()) extracted = removeDuplicateTitle(extracted, title)
 
-            // Check if we actually got meaningful article text
+            // Check if we actually got meaningful article text.
             val textOnly = extracted.replace(Regex("<[^>]*>"), "").trim()
             if (textOnly.length < MIN_CONTENT_LENGTH) {
                 return@withContext ArticleContent.LoadUrl(url)
@@ -48,14 +56,16 @@ object ArticleFetcher {
 
             val withAbsoluteImages = makeImagesAbsolute(extracted, baseUrl)
 
-            // Prepend RSS feed image only if a variant of it doesn't already appear in the article.
-            // Compare by image path stem (e.g. "JKfZ5k9LDqrg...donald-trump") since sites
-            // serve the same image at different sizes/formats between RSS and article HTML.
+            // Prepend RSS feed image only if a variant of it does not already appear
+            // in the article. Compare by image path stem so different sizes and formats
+            // of the same image are still treated as duplicates.
             val imageId = extractImageId(imageUrl)
             val isDuplicate = imageId.isNotEmpty() && withAbsoluteImages.contains(imageId)
             val leadImage = if (imageUrl.isNotEmpty() && !isDuplicate) {
                 """<img src="$imageUrl" alt="" style="width:100%;margin-bottom:12px"/>"""
-            } else ""
+            } else {
+                ""
+            }
 
             ArticleContent.Html(wrapInDarkTheme(leadImage + withAbsoluteImages))
         } catch (_: Exception) {
@@ -74,20 +84,23 @@ object ArticleFetcher {
             val text = match.value.replace(Regex("<[^>]*>"), "").trim()
             val headingWords = text.lowercase().split(Regex("\\W+")).filter { it.length > 2 }.toSet()
             val overlap = headingWords.intersect(titleWords)
-            // Remove if most heading words appear in the title
-            if (headingWords.size >= 2 && overlap.size >= headingWords.size * 0.6) "" else match.value
+            if (headingWords.size >= 2 && overlap.size >= headingWords.size * 0.6) {
+                ""
+            } else {
+                match.value
+            }
         }
     }
 
-    /** Extract a stable identifier from an image URL for deduplication.
-     *  Returns the filename stem (without extension) so that the same image served at
-     *  different sizes or formats (jpg/jpeg/webp/avif) is still recognised as a duplicate. */
+    /**
+     * Extract a stable identifier from an image URL for deduplication.
+     * Returns the filename stem (without extension) so that the same image served at
+     * different sizes or formats is still recognised as a duplicate.
+     */
     internal fun extractImageId(url: String): String {
-        // Take the last path segment, strip query params and extension
         val path = url.substringBefore("?").substringBeforeLast("#")
         val filename = path.substringAfterLast("/")
         val stem = filename.substringBeforeLast(".")
-        // Only use it if it's a meaningful name (not just a number or very short hash)
         return if (stem.length >= 4) stem else ""
     }
 
@@ -96,8 +109,10 @@ object ArticleFetcher {
         return match?.groupValues?.get(1) ?: ""
     }
 
-    /** Extract inner HTML of the first div whose class contains one of the given patterns,
-     *  properly tracking nesting depth to find the matching closing tag. */
+    /**
+     * Extract inner HTML of the first div whose class contains one of the given patterns,
+     * properly tracking nesting depth to find the matching closing tag.
+     */
     internal fun extractDivByClass(html: String, vararg classPatterns: String): String? {
         for (pattern in classPatterns) {
             val openRegex = Regex("""<div[^>]+class="[^"]*$pattern[^"]*"[^>]*>""", RegexOption.IGNORE_CASE)
@@ -132,9 +147,8 @@ object ArticleFetcher {
         html.replace(Regex("<[^>]*>"), "").trim().length
 
     internal fun extractGenericContent(html: String): String {
-        var cleaned = stripTags(html, "script", "style", "nav", "footer", "aside", "svg", "noscript", "header")
+        val cleaned = stripTags(html, "script", "style", "nav", "footer", "aside", "svg", "noscript", "header")
 
-        // Extract candidates from different container tags
         val articleHtml = Regex(
             "<article[^>]*>([\\s\\S]*)</article>",
             RegexOption.IGNORE_CASE
@@ -145,27 +159,42 @@ object ArticleFetcher {
             RegexOption.IGNORE_CASE
         ).find(cleaned)?.groupValues?.get(1)
 
-        // Look for div with common article-content class names (e.g. GameStar, WordPress)
-        val contentDivHtml = extractDivByClass(cleaned,
-            "article-content", "entry-content", "post-content", "story-body")
+        val contentDivHtml = extractDivByClass(
+            cleaned,
+            "article-content",
+            "entry-content",
+            "post-content",
+            "story-body"
+        )
 
         val bodyHtml = Regex(
             "<body[^>]*>([\\s\\S]*)</body>",
             RegexOption.IGNORE_CASE
         ).find(cleaned)?.groupValues?.get(1)
 
-        // Prefer narrowest container with enough content to avoid picking up
-        // comments, sidebars, etc. that inflate the body's text length.
         val content = listOfNotNull(contentDivHtml, articleHtml, mainHtml)
             .firstOrNull { textLength(it) >= MIN_CONTENT_LENGTH }
             ?: listOfNotNull(mainHtml, articleHtml, bodyHtml).maxByOrNull { textLength(it) }
             ?: cleaned
 
-        var result = stripTags(content, "script", "style", "nav", "footer", "aside", "svg", "noscript", "form", "header", "section", "textarea", "button", "iframe")
-        // Remove stray form elements (input, select) that survive after form/textarea stripping
+        var result = stripTags(
+            content,
+            "script",
+            "style",
+            "nav",
+            "footer",
+            "aside",
+            "svg",
+            "noscript",
+            "form",
+            "header",
+            "section",
+            "textarea",
+            "button",
+            "iframe"
+        )
+
         result = Regex("""<(?:input|select)[^>]*/?>""", RegexOption.IGNORE_CASE).replace(result, "")
-        // Nesting-aware removal FIRST — must run before removeByClassPattern which uses
-        // simple regex that breaks on nested divs and would corrupt the structure.
         result = removeNestedDivs(result, Regex("""<div[^>]+id="comments"[^>]*>""", RegexOption.IGNORE_CASE))
         result = removeNestedDivs(result, Regex("""<div[^>]+id="comment-modal[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
         result = removeNestedDivs(result, Regex("""<div[^>]+id="inactivity-popup"[^>]*>""", RegexOption.IGNORE_CASE))
@@ -175,27 +204,59 @@ object ArticleFetcher {
         result = removeNestedDivs(result, Regex("""<div[^>]+class="[^"]*contentteaser[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
         result = removeNestedDivs(result, Regex("""<div[^>]+class="[^"]*notifications[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
         result = removeNestedDivs(result, Regex("""<div[^>]+class="[^"]*\bbox-content\b[^"]*"[^>]*>""", RegexOption.IGNORE_CASE))
-        result = removeByClassPattern(result,
-            "ad-", "teaser", "banner", "notice-banner", "cookie", "comment",
-            "login", "plus-tafel", "plus-teaser", "contentteaser",
-            "sidebar", "newsletter", "social", "anzeige", "magazine", "menu",
-            "toolbar", "breadcrumb", "topnav", "nav-", "a-navigation",
-            "special", "druckansicht", "kommentar", "heise-bot", "push-nach",
-            // gamestar specific
-            "content-meta", "content-label", "btn-tab", "do-toggle", "do-filter",
-            "taglist", "OUTBRAIN", "jad-placeholder",
-            "sticky-description", "content-view-count", "video-canvas",
-            "ads-row", "cmp-split",
-            // decoder specific
-            "entry-header", "copy-url", "decoder-ad", "decoder-highlight",
-            "icon-share", "icon-comment", "icon-link", "sr-only", "not-prose"
+        result = removeByClassPattern(
+            result,
+            "ad-",
+            "teaser",
+            "banner",
+            "notice-banner",
+            "cookie",
+            "comment",
+            "login",
+            "plus-tafel",
+            "plus-teaser",
+            "contentteaser",
+            "sidebar",
+            "newsletter",
+            "social",
+            "anzeige",
+            "magazine",
+            "menu",
+            "toolbar",
+            "breadcrumb",
+            "topnav",
+            "nav-",
+            "a-navigation",
+            "special",
+            "druckansicht",
+            "kommentar",
+            "heise-bot",
+            "push-nach",
+            "content-meta",
+            "content-label",
+            "btn-tab",
+            "do-toggle",
+            "do-filter",
+            "taglist",
+            "OUTBRAIN",
+            "jad-placeholder",
+            "sticky-description",
+            "content-view-count",
+            "video-canvas",
+            "ads-row",
+            "cmp-split",
+            "entry-header",
+            "copy-url",
+            "decoder-ad",
+            "decoder-highlight",
+            "icon-share",
+            "icon-comment",
+            "icon-link",
+            "sr-only",
+            "not-prose"
         )
-        result = removeById(result,
-            "header-login", "div-plus-teaser-paid-content", "socialshare"
-        )
-        result = removeByDataAttribute(result,
-            "breadcrumb", "topic-tags", "content-module", "s-teaser"
-        )
+        result = removeById(result, "header-login", "div-plus-teaser-paid-content", "socialshare")
+        result = removeByDataAttribute(result, "breadcrumb", "topic-tags", "content-module", "s-teaser")
         result = removeByAriaLabel(result, "Pfadnavigation")
         result = removeTemplateVars(result)
         result = removeNavigationLists(result)
@@ -204,10 +265,11 @@ object ArticleFetcher {
         return result
     }
 
-    /** Remove <ul>/<ol> elements that are navigation-style (mostly links/buttons, little text).
-     *  Matches innermost lists first (no nested lists inside), then loops to peel outer layers. */
+    /**
+     * Remove <ul>/<ol> elements that are navigation-style (mostly links/buttons, little text).
+     * Matches innermost lists first, then loops to peel outer layers.
+     */
     internal fun removeNavigationLists(html: String): String {
-        // Match only lists that do NOT contain nested <ul>/<ol> (innermost first)
         val leafListRegex = Regex(
             """<(ul|ol)\b[^>]*>(?:(?!<(?:ul|ol)\b)[\s\S]){0,10000}?</\1>""",
             RegexOption.IGNORE_CASE
@@ -221,7 +283,6 @@ object ArticleFetcher {
                 val interactiveCount = linkCount + buttonCount
                 val liCount = Regex("""<li[\s>]""", RegexOption.IGNORE_CASE).findAll(block).count()
                 val text = block.replace(Regex("<[^>]*>"), "").trim()
-                // Navigation list: mostly links/buttons with little text per item
                 if (liCount > 0 && interactiveCount >= liCount && text.length < liCount * 80) {
                     ""
                 } else {
@@ -234,16 +295,13 @@ object ArticleFetcher {
         return result
     }
 
-    /** Strip leading non-content junk before the first substantial <p> */
+    /** Strip leading non-content junk before the first substantial <p>. */
     internal fun stripLeadingJunk(html: String): String {
-        // Find the first <p> that has at least 50 chars of text
         val firstP = Regex("""<p[\s>][\s\S]*?</p>""", RegexOption.IGNORE_CASE).find(html) ?: return html
         val pText = firstP.value.replace(Regex("<[^>]*>"), "").trim()
         if (pText.length >= 50) {
-            // Keep everything from this <p> onward, but also keep any <figure>/<img> before it
             val beforeP = html.substring(0, firstP.range.first)
             val fromP = html.substring(firstP.range.first)
-            // Preserve images/figures from before the first <p>
             val preservedMedia = Regex(
                 """<(?:figure|img)[^>]*>[\s\S]*?(?:</figure>|/?>)""",
                 RegexOption.IGNORE_CASE
@@ -275,7 +333,7 @@ object ArticleFetcher {
         return result
     }
 
-    /** Remove images that are icons, template vars, plus badges, or placeholders */
+    /** Remove images that are icons, template vars, plus badges, or placeholders. */
     internal fun removeJunkImages(html: String): String {
         return Regex(
             """<img[^>]*>""",
@@ -284,17 +342,11 @@ object ArticleFetcher {
             val tag = match.value
             val src = Regex("""src="([^"]*)"""").find(tag)?.groupValues?.get(1) ?: ""
             when {
-                // Template variable images: ${image}
                 src.contains("\${") || src.contains("%7B") -> ""
-                // Icon/logo SVGs
                 src.contains("/icons/") -> ""
-                // Heise plus branding
                 src.contains("heise_plus") || src.contains("heiseplus") -> ""
-                // Arrow/UI icons
                 src.contains("arrow-") -> ""
-                // Tiny tracking pixels or cloudimg placeholders with template vars
                 src.contains("cloudimg.io") && src.contains("%7B") -> ""
-                // VG Wort and other 1x1 tracking pixels
                 tag.contains("""height="1"""") && tag.contains("""width="1"""") -> ""
                 else -> tag
             }
@@ -313,7 +365,6 @@ object ArticleFetcher {
     private fun removeByClassPattern(html: String, vararg patterns: String): String {
         var result = html
         for (pattern in patterns) {
-            // Non-greedy won't work for nested tags, so use a length-limited greedy match
             result = Regex(
                 """<([a-z][a-z0-9]*)[^>]+class="[^"]*$pattern[^"]*"[^>]*>[\s\S]{0,50000}?</\1>""",
                 RegexOption.IGNORE_CASE
@@ -333,8 +384,10 @@ object ArticleFetcher {
         return result
     }
 
-    /** Remove all div blocks whose opening tag matches [openTagPattern], tracking nesting depth
-     *  to find the correct closing tag (unlike simple regex which breaks on nested divs). */
+    /**
+     * Remove all div blocks whose opening tag matches [openTagPattern], tracking nesting depth
+     * to find the correct closing tag.
+     */
     private fun removeNestedDivs(html: String, openTagPattern: Regex): String {
         var result = html
         while (true) {
@@ -348,11 +401,14 @@ object ArticleFetcher {
                 if (result.startsWith("<div", i, ignoreCase = true)) depth++
                 else if (result.startsWith("</div>", i, ignoreCase = true)) {
                     depth--
-                    if (depth == 0) { endIndex = i + 6; break }
+                    if (depth == 0) {
+                        endIndex = i + 6
+                        break
+                    }
                 }
                 i++
             }
-            if (endIndex < 0) break // malformed HTML, stop
+            if (endIndex < 0) break
             result = result.substring(0, start) + result.substring(endIndex)
         }
         return result
@@ -374,6 +430,9 @@ object ArticleFetcher {
     }
 
     private fun wrapInDarkTheme(content: String): String {
+        val sameFeedImage = "file:///android_res/drawable/article_read.jpg"
+        val nextFeedImage = "file:///android_res/drawable/article_read_next_feed.jpg"
+
         return """
             <!DOCTYPE html>
             <html>
@@ -414,37 +473,27 @@ object ArticleFetcher {
                         flex-wrap: wrap;
                     }
                     .bottom-actions button {
-                        flex: 1 1 30%;
+                        flex: 1 1 45%;
                         min-width: 0;
-                        padding: 12px 16px;
-                        border-radius: 24px;
-                        font-size: 16px;
-                        font-weight: 500;
+                        padding: 8px;
+                        border-radius: 20px;
                         cursor: pointer;
                         border: none;
-                    }
-                    .btn-browser {
                         background: transparent;
-                        border: 1px solid #555 !important;
-                        color: #E0E0E0;
                     }
-                    .btn-gelesen {
-                        background: #2A2A3E;
-                        color: #E0E0E0;
-                    }
-                    .btn-same-feed {
-                        background: transparent;
-                        border: 1px solid #E94560 !important;
-                        color: #E94560;
+                    .bottom-actions button img {
+                        display: block;
+                        width: 100%;
+                        height: auto;
+                        margin: 0;
                     }
                 </style>
             </head>
             <body>
                 $content
                 <div class="bottom-actions">
-                    <button class="btn-browser" onclick="AndroidBridge.onBrowserClick()">In Browser lesen</button>
-                    <button class="btn-same-feed" onclick="AndroidBridge.onSameFeedClick()">Gelesen gleicher Feed</button>
-                    <button class="btn-gelesen" onclick="AndroidBridge.onGelesenClick()">Gelesen nächster Feed</button>
+                    <button class="btn-same-feed" onclick="AndroidBridge.onSameFeedClick()"><img src="$sameFeedImage" alt="Gelesen gleicher Feed"></button>
+                    <button class="btn-gelesen" onclick="AndroidBridge.onGelesenClick()"><img src="$nextFeedImage" alt="Gelesen n\u00E4chster Feed"></button>
                 </div>
             </body>
             </html>
