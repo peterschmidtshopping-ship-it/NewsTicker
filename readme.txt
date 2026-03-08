@@ -1,7 +1,10 @@
-Ich möchte eine Application bauen, die den rss Heise News Ticker ausliesst (https://www.heise.de/rss/heise.rdf) und anhand meiner Preferenzen Artikel auswählt.
+NewsTicker is a personal news filtering app.
 
-Die Ausgewählten Artikel sollen auf einer Html Seite mit Artikel, Beschreibung und Link/Url angezeigt werden.
+Its purpose is to collect articles from configured RSS feeds.
 
-Meine Preferenzen stehen in der Datei Artikel-Preferenzen.txt.
-
-Die Entscheidung, ob mich ein Artikel interessiert, soll getroffen werden, indem meine Artikel-Preferenzen.txt Datei zusammen mit dem ausgelesen rss Feed an ein LLM (claude mit API Key) gesendet werden.
+Current features:
+- Fetches articles from multiple RSS feeds defined in `feeds.json`
+- Shows articles with title, description, source, date, and link
+- Keeps track of read articles so they no longer appear again
+- Provides a browser-based reader view for filtered articles
+- Includes an Android app with article paging, refresh, settings, and article sharing
