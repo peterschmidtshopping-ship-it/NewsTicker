@@ -442,9 +442,9 @@ object ArticleFetcher {
             <body>
                 $content
                 <div class="bottom-actions">
-                    <button class="btn-browser" onclick="AndroidBridge.onBrowserClick()">Browser</button>
-                    <button class="btn-same-feed" onclick="AndroidBridge.onSameFeedClick()">Gleicher Feed</button>
-                    <button class="btn-gelesen" onclick="AndroidBridge.onGelesenClick()">Gelesen</button>
+                    <button class="btn-browser" onclick="AndroidBridge.onBrowserClick()">In Browser lesen</button>
+                    <button class="btn-same-feed" onclick="AndroidBridge.onSameFeedClick()">Gelesen gleicher Feed</button>
+                    <button class="btn-gelesen" onclick="AndroidBridge.onGelesenClick()">Gelesen nächster Feed</button>
                 </div>
             </body>
             </html>

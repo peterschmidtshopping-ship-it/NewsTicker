@@ -94,14 +94,14 @@ fun ArticlePage(
                 },
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Browser")
+                Text("In Browser lesen")
             }
 
             OutlinedButton(
                 onClick = onMarkReadAndOpenSameFeed,
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Gleicher Feed")
+                Text("Gelesen gleicher Feed")
             }
 
             Button(
@@ -111,7 +111,7 @@ fun ArticlePage(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
-                Text("Gelesen", color = MaterialTheme.colorScheme.onSurface)
+                Text("Gelesen nächster Feed", color = MaterialTheme.colorScheme.onSurface)
             }
         }
 
