@@ -12,6 +12,7 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,9 +30,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.newsticker.ui.theme.AccentRed
+import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +43,7 @@ fun ArticlesScreen(
     viewModel: ArticlesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -63,6 +67,20 @@ fun ArticlesScreen(
                 actions = {
                     IconButton(onClick = { viewModel.loadArticles() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Aktualisieren")
+                    }
+                    IconButton(
+                        onClick = {
+                            val state = uiState as? UiState.Loaded ?: return@IconButton
+                            val article = state.articles.getOrNull(state.currentPage) ?: return@IconButton
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, article.title)
+                                putExtra(Intent.EXTRA_TEXT, "${article.title}\n${article.link}")
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Artikel teilen"))
+                        }
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = "Teilen")
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Einstellungen")
