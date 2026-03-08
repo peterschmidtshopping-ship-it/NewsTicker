@@ -24,7 +24,7 @@ class FeedStore(private val context: Context) {
     private val feedsKey = stringPreferencesKey("feeds_json")
 
     companion object {
-        const val MAX_FEEDS = 10
+        const val MAX_FEEDS = 15
 
         fun loadDefaultFeeds(context: Context): List<FeedSetting> {
             val json = context.assets.open("feeds.json").bufferedReader().use { it.readText() }
