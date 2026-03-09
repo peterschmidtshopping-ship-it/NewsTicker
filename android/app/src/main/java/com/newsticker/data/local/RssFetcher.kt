@@ -32,7 +32,7 @@ object RssFetcher {
         val results = feeds.map { feed ->
             async {
                 try {
-                    fetchFeed(feed)
+                    fetchFeed(feed, readHistory)
                 } catch (e: Exception) {
                     val message = e.message ?: e.toString()
                     synchronized(warnings) {
@@ -46,7 +46,7 @@ object RssFetcher {
         Pair(filterUnreadAndUnique(interleave(results), readHistory), warnings)
     }
 
-    private fun fetchFeed(feed: FeedConfig): List<Article> {
+    private fun fetchFeed(feed: FeedConfig, readHistory: ReadHistory): List<Article> {
         val request = Request.Builder()
             .url(feed.url)
             .header("User-Agent", "NewsTicker/1.0")
@@ -59,10 +59,13 @@ object RssFetcher {
             response.body?.string() ?: throw Exception("Empty response")
         }
 
-        return parseRss(responseBody, feed.source)
+        return takeUnreadUpToLimit(parseRss(responseBody, feed.source), readHistory)
     }
 
-    private fun parseRss(xml: String, source: String): List<Article> {
+    private fun parseRss(
+        xml: String,
+        source: String
+    ): List<Article> {
         val factory = XmlPullParserFactory.newInstance()
         factory.isNamespaceAware = false
         val parser = factory.newPullParser()
@@ -111,7 +114,7 @@ object RssFetcher {
                 XmlPullParser.END_TAG -> {
                     if (parser.name == "item" || parser.name == "entry") {
                         inItem = false
-                        if (link.isNotEmpty() && articles.size < ARTICLES_PER_FEED) {
+                        if (link.isNotEmpty()) {
                             // Extract image URL from content:encoded (if available)
                             val imageUrl = Regex("""<img[^>]+src="([^"]+)"""")
                                 .find(contentEncoded)?.groupValues?.get(1) ?: ""
@@ -148,6 +151,36 @@ object RssFetcher {
         }
 
         return articles
+    }
+
+    internal fun takeUnreadUpToLimit(
+        articles: List<Article>,
+        readHistory: ReadHistory,
+        limit: Int = ARTICLES_PER_FEED
+    ): List<Article> {
+        val unread = mutableListOf<Article>()
+        val seenUrls = mutableSetOf<String>()
+        val seenTitles = mutableSetOf<String>()
+
+        for (article in articles) {
+            val normalizedUrl = ReadStore.normalizeUrl(article.link)
+            val normalizedTitle = ReadStore.normalizeTitle(article.title)
+            val duplicate =
+                (normalizedUrl.isNotEmpty() &&
+                    (readHistory.urls.contains(normalizedUrl) || seenUrls.contains(normalizedUrl))) ||
+                (normalizedTitle.isNotEmpty() &&
+                    (readHistory.titles.contains(normalizedTitle) || seenTitles.contains(normalizedTitle)))
+
+            if (duplicate) continue
+
+            unread.add(article)
+            if (normalizedUrl.isNotEmpty()) seenUrls.add(normalizedUrl)
+            if (normalizedTitle.isNotEmpty()) seenTitles.add(normalizedTitle)
+
+            if (unread.size >= limit) break
+        }
+
+        return unread
     }
 
     private fun filterUnreadAndUnique(
